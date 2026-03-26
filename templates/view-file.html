@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>查看文件 - 文档检索系统</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      margin: 0;
+      padding: 0;
+      background-color: white;
+    }
+    .header {
+      padding: 20px;
+      border-bottom: 1px solid #ddd;
+      background-color: #f9f9f9;
+    }
+    h1 {
+      margin: 0;
+      color: #333;
+      text-align: center;
+    }
+    .nav {
+      text-align: center;
+      margin-top: 10px;
+    }
+    .nav a {
+      margin: 0 10px;
+      text-decoration: none;
+      color: #0066cc;
+      font-weight: bold;
+    }
+    .content {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+    .sidebar {
+      width: 300px;
+      padding: 20px;
+      border-right: 1px solid #ddd;
+      background-color: #f9f9f9;
+      overflow-y: auto;
+    }
+    .sidebar h2 {
+      margin-top: 0;
+      font-size: 18px;
+      color: #333;
+    }
+    .file-info {
+      margin-top: 20px;
+    }
+    .file-info p {
+      margin: 10px 0;
+      line-height: 1.4;
+    }
+    .file-info strong {
+      display: inline-block;
+      width: 80px;
+    }
+    .back-link {
+      display: block;
+      margin-top: 30px;
+      padding: 10px;
+      text-align: center;
+      color: #0066cc;
+      text-decoration: none;
+      font-weight: bold;
+      border: 1px solid #0066cc;
+      border-radius: 4px;
+    }
+    .back-link:hover {
+      background-color: #0066cc;
+      color: white;
+    }
+    .preview-area {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+    .preview-container {
+      width: 90%;
+      height: 100%;
+      overflow: hidden;
+    }
+    .file-viewer {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+    .word-content {
+      width: 100%;
+      height: 100%;
+      overflow-y: auto;
+      padding: 20px;
+      background-color: white;
+    }
+    .download-option {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100%;
+      padding: 20px;
+      text-align: center;
+    }
+    .download-option h3 {
+      margin-bottom: 20px;
+      color: #333;
+    }
+    .download-option p {
+      margin-bottom: 30px;
+      color: #666;
+    }
+    .download-btn {
+      padding: 10px 30px;
+      background-color: #4CAF50;
+      color: white;
+      text-decoration: none;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+    .download-btn:hover {
+      background-color: #45a049;
+    }
+  </style>
+
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>文档检索系统</h1>
+      <div class="nav">
+        <a href="/">首页</a> | 
+        <a href="/upload">上传文档</a> | 
+        <a href="/merged-search">文档检索</a> | 
+        <a href="/categories">分类管理</a> | 
+        <a href="/settings">系统设置</a>
+      </div>
+    </div>
+    <div class="content">
+      <div class="sidebar">
+        <h2>文件信息</h2>
+        <div class="file-info">
+          <p><strong>文件名:</strong> {{ file_name }}</p>
+          <p><strong>文件大小:</strong> {{ file_size }}</p>
+          <p><strong>上传时间:</strong> {{ upload_time }}</p>
+        </div>
+        <a href="/merged-search" class="back-link">返回文件列表</a>
+      </div>
+      <div class="preview-area">
+        <div class="preview-container">
+          {% if file_ext == 'pdf' %}
+          <!-- PDF文件查看 -->
+          <embed src="/get-file/{{ file_id }}" class="file-viewer" type="application/pdf">
+          {% elif file_ext in ['doc', 'docx'] %}
+          <!-- Word文件查看 -->
+          {% if word_html %}
+          <!-- 后端转换的Word内容 -->
+          <div class="word-content">
+            {{ word_html|safe }}
+          </div>
+          {% else %}
+          <!-- 下载文件选项 -->
+          <div class="download-option">
+            <h3>Word文件查看</h3>
+            <p>无法在线预览此文件，您可以下载后查看：</p>
+            <a href="/get-file/{{ file_id }}" download="{{ file_name }}" class="download-btn">下载文件</a>
+          </div>
+          {% endif %}
+          {% else %}
+          <!-- 其他文件类型，尝试在浏览器中打开 -->
+          <embed src="/get-file/{{ file_id }}" class="file-viewer" type="{{ mime_type }}">
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>搜索结果 - 文档检索系统</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: white;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      margin-top: 50px;
+      border-radius: 5px;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    .nav {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .nav a {
+      margin: 0 10px;
+      text-decoration: none;
+      color: #0066cc;
+      font-weight: bold;
+    }
+    .search-info {
+      margin-bottom: 20px;
+      padding: 10px;
+      background-color: #f8f9fa;
+      border-radius: 4px;
+    }
+    .result-item {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 15px;
+      margin-bottom: 10px;
+    }
+    .result-item h3 {
+      margin-top: 0;
+      color: #333;
+    }
+    .result-item p {
+      margin: 5px 0;
+      color: #666;
+    }
+    .result-item .filetype {
+      display: inline-block;
+      padding: 2px 8px;
+      background-color: #e9ecef;
+      border-radius: 10px;
+      font-size: 12px;
+      margin-right: 10px;
+    }
+    .back-link {
+      display: inline-block;
+      margin-top: 20px;
+      padding: 10px 20px;
+      background-color: #6c757d;
+      color: white;
+      text-decoration: none;
+      border-radius: 4px;
+    }
+    .back-link:hover {
+      background-color: #5a6268;
+    }
+    .no-results {
+      text-align: center;
+      padding: 50px 0;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>文档检索系统</h1>
+    <div class="nav">
+      <a href="/">首页</a> | 
+      <a href="/upload">上传文档</a> | 
+      <a href="/search">搜索文档</a> | 
+      <a href="/file-list">文件列表</a> | 
+      <a href="/categories">分类管理</a> | 
+      <a href="/settings">系统设置</a>
+    </div>
+    <div class="search-info">
+      <h2>搜索结果</h2>
+      <p>关键词: <strong>{{ query }}</strong></p>
+    </div>
+    {% if results and results|length > 0 %}
+      {% for result in results %}
+        <div class="result-item">
+          <h3>{{ result.filename }}</h3>
+          <p>
+            <span class="filetype">
+              {% if result.filetype == 'application/pdf' %}PDF{% elif result.filetype == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' %}Word{% endif %}
+            </span>
+            上传时间: {{ result.upload_date }}
+          </p>
+          <p><a href="{{ result.filepath }}" target="_blank">查看文件</a></p>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="no-results">
+        <h3>未找到匹配的文档</h3>
+        <p>请尝试使用其他关键词进行搜索</p>
+      </div>
+    {% endif %}
+    <a href="/search" class="back-link">返回搜索</a>
+  </div>
+</body>
+</html>

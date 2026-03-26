@@ -1,0 +1,7 @@
+Flask
+PyPDF2
+python-docx
+mysql-connector-python
+pytesseract
+Pillow
+pdf2image

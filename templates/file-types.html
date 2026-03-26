@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>文件类型管理 - 文档检索系统</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: white;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      margin-top: 50px;
+      border-radius: 5px;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    .nav {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .nav a {
+      margin: 0 10px;
+      text-decoration: none;
+      color: #0066cc;
+      font-weight: bold;
+    }
+    .action-buttons {
+      margin-bottom: 20px;
+      text-align: right;
+    }
+    .btn {
+      padding: 8px 16px;
+      background-color: #0066cc;
+      color: white;
+      text-decoration: none;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+    .btn:hover {
+      background-color: #0052a3;
+    }
+    .btn-danger {
+      background-color: #dc3545;
+    }
+    .btn-danger:hover {
+      background-color: #c82333;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+    th {
+      background-color: #f2f2f2;
+      font-weight: bold;
+    }
+    tr:hover {
+      background-color: #f5f5f5;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>文档检索系统</h1>
+    <div class="nav">
+      <a href="/">首页</a> | 
+      <a href="/upload">上传文档</a> | 
+      <a href="/search">搜索文档</a> | 
+      <a href="/file-types">文件类型管理</a> | 
+      <a href="/settings">系统设置</a>
+    </div>
+    <h2>文件类型管理</h2>
+    <div class="action-buttons">
+      <a href="/file-types/add" class="btn">添加文件类型</a>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>类型名称</th>
+          <th>描述</th>
+          <th>创建时间</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for file_type in file_types %}
+        <tr>
+          <td>{{ file_type[0] }}</td>
+          <td>{{ file_type[1] }}</td>
+          <td>{{ file_type[2] }}</td>
+          <td>{{ file_type[3] }}</td>
+          <td>
+            <a href="/file-types/edit/{{ file_type[0] }}" class="btn">编辑</a>
+            <a href="/file-types/delete/{{ file_type[0] }}" class="btn btn-danger" onclick="return confirm('确定要删除吗？');">删除</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

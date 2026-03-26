@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>文件列表 - 文档检索系统</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+    }
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: white;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      margin-top: 50px;
+      border-radius: 5px;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    .nav {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .nav a {
+      margin: 0 10px;
+      text-decoration: none;
+      color: #0066cc;
+      font-weight: bold;
+    }
+    .file-list {
+      margin-top: 20px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 10px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+    th {
+      background-color: #f2f2f2;
+      font-weight: bold;
+    }
+    tr:hover {
+      background-color: #f5f5f5;
+    }
+    .file-size {
+      font-size: 14px;
+      color: #666;
+    }
+    .upload-date {
+      font-size: 14px;
+      color: #666;
+    }
+    .action-buttons {
+      display: flex;
+      gap: 5px;
+    }
+    .btn {
+      padding: 5px 10px;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      text-decoration: none;
+      font-size: 14px;
+    }
+    .btn-primary {
+      background-color: #0066cc;
+      color: white;
+    }
+    .btn-secondary {
+      background-color: #666;
+      color: white;
+    }
+    .no-files {
+      text-align: center;
+      padding: 50px;
+      color: #999;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>文档检索系统</h1>
+    <div class="nav">
+      <a href="/">首页</a> | 
+      <a href="/upload">上传文档</a> | 
+      <a href="/search">搜索文档</a> | 
+      <a href="/file-list">文件列表</a> | 
+      <a href="/categories">分类管理</a> | 
+      <a href="/settings">系统设置</a>
+    </div>
+    <h2>文件列表</h2>
+    <div class="file-list">
+      {% if files %}
+        <table>
+          <thead>
+            <tr>
+              <th>文件名</th>
+              <th>文件大小</th>
+              <th>分类</th>
+              <th>发文单位</th>
+              <th>上传时间</th>
+              <th>备注</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for file in files %}
+              <tr>
+                <td>{{ file.filename }}</td>
+                <td class="file-size">{{ file.file_size }} bytes</td>
+                <td>{{ file.filetype }}</td>
+                <td>{{ file.issuing_unit }}</td>
+                <td class="upload-date">{{ file.upload_date }}</td>
+                <td>{{ file.remark }}</td>
+                <td>
+                  <div class="action-buttons">
+                    <a href="{{ file.filepath }}" class="btn btn-primary" target="_blank">查看</a>
+                    <a href="{{ file.filepath }}" class="btn btn-secondary" download>下载</a>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="no-files">
+          <p>暂无文件，请上传文件。</p>
+        </div>
+      {% endif %}
+    </div>
+    
+    <!-- 分页导航 -->
+    {% if total_pages > 1 %}
+    <div class="pagination" style="margin-top: 20px; text-align: center;">
+        <nav>
+            <ul style="list-style: none; padding: 0; display: inline-flex;">
+                {% if page > 1 %}
+                <li style="margin: 0 5px;">
+                    <a href="{{ url_for('file_list', page=page-1) }}" style="padding: 8px 12px; border: 1px solid #ddd; text-decoration: none; color: #333; border-radius: 4px;">上一页</a>
+                </li>
+                {% endif %}
+                
+                {% for p in range(1, total_pages + 1) %}
+                <li style="margin: 0 5px;">
+                    <a href="{{ url_for('file_list', page=p) }}" style="padding: 8px 12px; border: 1px solid #ddd; text-decoration: none; color: #333; border-radius: 4px; {% if p == page %}background-color: #0066cc; color: white;{% endif %}">{{ p }}</a>
+                </li>
+                {% endfor %}
+                
+                {% if page < total_pages %}
+                <li style="margin: 0 5px;">
+                    <a href="{{ url_for('file_list', page=page+1) }}" style="padding: 8px 12px; border: 1px solid #ddd; text-decoration: none; color: #333; border-radius: 4px;">下一页</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+  </div>
+</body>
+</html>

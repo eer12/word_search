@@ -1,0 +1,57 @@
+# 虚拟环境
+.venv/
+env/
+venv/
+
+# 编译后的Python文件
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 打包生成的文件
+dist/
+build/
+*.spec
+
+# 日志文件
+logs/
+*.log
+
+# 临时文件
+temp/
+tmp/
+*.tmp
+*.temp
+
+# 数据库文件
+documents.db
+
+# 编辑器配置文件
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 环境变量文件
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# OS生成的文件
+Thumbs.db
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# MySQL相关
+mysql/
+
+# 安装程序生成的文件
+setup.exe
+launch.exe

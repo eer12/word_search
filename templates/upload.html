@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>上传文档 - 文档检索系统</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Microsoft YaHei', Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 30px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    h1 {
+      color: #2c3e50;
+      font-size: 2rem;
+      margin-bottom: 15px;
+      font-weight: 600;
+    }
+    h2 {
+      color: #2c3e50;
+      font-size: 1.5rem;
+      margin-bottom: 20px;
+      font-weight: 500;
+      text-align: center;
+    }
+    .nav {
+      text-align: center;
+      margin-bottom: 30px;
+      padding: 10px 0;
+      background-color: rgba(255, 255, 255, 0.8);
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    .nav a {
+      margin: 0 15px;
+      text-decoration: none;
+      color: #3498db;
+      font-weight: 500;
+      font-size: 1rem;
+      transition: color 0.3s ease;
+    }
+    .nav a:hover {
+      color: #2980b9;
+    }
+    .upload-form {
+      background-color: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    label {
+      font-weight: 500;
+      color: #2c3e50;
+      font-size: 0.95rem;
+    }
+    input[type="file"],
+    select,
+    input[type="text"],
+    textarea {
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      font-family: 'Microsoft YaHei', Arial, sans-serif;
+    }
+    textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+    .action-buttons {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      margin-top: 10px;
+    }
+    button,
+    .btn {
+      padding: 10px 24px;
+      background-color: #3498db;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 500;
+      transition: background-color 0.3s ease, transform 0.2s ease;
+      text-decoration: none;
+      display: inline-block;
+      text-align: center;
+    }
+    button:hover,
+    .btn:hover {
+      background-color: #2980b9;
+      transform: translateY(-2px);
+    }
+    .btn-secondary {
+      background-color: #95a5a6;
+    }
+    .btn-secondary:hover {
+      background-color: #7f8c8d;
+    }
+    .message {
+      padding: 12px;
+      margin-top: 20px;
+      border-radius: 6px;
+      text-align: center;
+      background-color: white;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    .success {
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .error {
+      background-color: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    footer {
+      text-align: center;
+      padding: 15px;
+      background-color: rgba(255, 255, 255, 0.8);
+      margin-top: 30px;
+      border-top: 1px solid #e0e0e0;
+    }
+    footer p {
+      color: #666;
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>文档检索系统</h1>
+      <div class="nav">
+        <a href="/">首页</a>
+        <a href="/upload">上传文档</a>
+        <a href="/merged-search">文档检索</a>
+        <a href="/categories">分类管理</a>
+        <a href="/settings">系统设置</a>
+      </div>
+    </header>
+    <h2>上传文档</h2>
+    <form class="upload-form" action="/upload" method="post" enctype="multipart/form-data">
+      <div class="form-group">
+        <label for="document">选择文档 (支持Word、PDF和WPS格式)</label>
+        <input type="file" id="document" name="document" accept=".docx,.pdf,.doc,.wps" required>
+      </div>
+      <div class="form-group">
+        <label>分类（可多选）</label>
+        <div id="category-tags" style="display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0;"></div>
+        <div style="border: 1px solid #ddd; border-radius: 6px; padding: 10px; min-height: 100px;">
+          {% for category in categories %}
+            <span class="category-option" data-id="{{ category[0] }}" style="display: inline-block; padding: 6px 12px; margin: 5px; background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 20px; cursor: pointer; transition: all 0.3s ease;">
+              {{ category[1] }}
+            </span>
+          {% endfor %}
+        </div>
+        <input type="hidden" id="selected-categories" name="category_id">
+        <small class="form-text text-muted">点击分类名称添加/移除标签</small>
+      </div>
+      <script>
+        document.addEventListener('DOMContentLoaded', function() {
+          const categoryOptions = document.querySelectorAll('.category-option');
+          const categoryTags = document.getElementById('category-tags');
+          const selectedCategoriesInput = document.getElementById('selected-categories');
+          
+          // 存储选中的分类ID和对应的颜色
+          const selectedCategories = new Set();
+          const categoryColors = new Map();
+          
+          // 预定义的标签颜色，选择高级感的莫兰迪色系
+          const tagColors = [
+            '#6B7280', // 高级灰
+            '#4F46E5', // 靛蓝色
+            '#EC4899', // 玫瑰粉
+            '#10B981', // 翠绿色
+            '#F59E0B', // 琥珀色
+            '#8B5CF6', // 薰衣草紫
+            '#06B6D4', // 青蓝色
+            '#EF4444', // 珊瑚红
+            '#14B8A6', // 薄荷绿
+            '#3B82F6'  // 矢车菊蓝
+          ];
+          
+          // 初始化默认分类（如果需要）
+          selectedCategories.add('1'); // 默认分类ID为1
+          updateTags();
+          
+          // 分类选项点击事件
+          categoryOptions.forEach(option => {
+            option.addEventListener('click', function() {
+              const categoryId = this.getAttribute('data-id');
+              
+              if (selectedCategories.has(categoryId)) {
+                // 移除分类
+                selectedCategories.delete(categoryId);
+                this.style.backgroundColor = '#f8f9fa';
+                this.style.borderColor = '#ddd';
+                this.style.color = '';
+              } else {
+                // 添加分类
+                selectedCategories.add(categoryId);
+                // 为分类分配颜色
+                if (!categoryColors.has(categoryId)) {
+                  const randomColor = tagColors[Math.floor(Math.random() * tagColors.length)];
+                  categoryColors.set(categoryId, randomColor);
+                }
+                const color = categoryColors.get(categoryId);
+                this.style.backgroundColor = color;
+                this.style.borderColor = shadeColor(color, -20);
+                this.style.color = 'white';
+              }
+              
+              updateTags();
+            });
+          });
+          
+          // 更新标签和隐藏输入
+          function updateTags() {
+            // 清空现有标签
+            categoryTags.innerHTML = '';
+            
+            // 添加选中的分类标签
+            selectedCategories.forEach(categoryId => {
+              const categoryName = Array.from(categoryOptions).find(option => option.getAttribute('data-id') === categoryId).textContent.trim();
+              const tag = document.createElement('div');
+              
+              // 获取分类对应的颜色
+              if (!categoryColors.has(categoryId)) {
+                const randomColor = tagColors[Math.floor(Math.random() * tagColors.length)];
+                categoryColors.set(categoryId, randomColor);
+              }
+              const color = categoryColors.get(categoryId);
+              
+              tag.style.display = 'inline-flex';
+              tag.style.alignItems = 'center';
+              tag.style.padding = '6px 14px';
+              tag.style.backgroundColor = color;
+              tag.style.color = 'white';
+              tag.style.borderRadius = '20px';
+              tag.style.fontSize = '0.9rem';
+              tag.style.margin = '5px';
+              tag.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+              tag.style.transition = 'all 0.3s ease';
+              
+              // 标签文本
+              const tagText = document.createTextNode(categoryName);
+              tag.appendChild(tagText);
+              
+              // 移除按钮
+              const removeBtn = document.createElement('span');
+              removeBtn.style.marginLeft = '8px';
+              removeBtn.style.cursor = 'pointer';
+              removeBtn.style.fontWeight = 'bold';
+              removeBtn.style.fontSize = '1rem';
+              removeBtn.style.lineHeight = '1';
+              removeBtn.textContent = '×';
+              removeBtn.addEventListener('click', function() {
+                selectedCategories.delete(categoryId);
+                const option = document.querySelector(`.category-option[data-id="${categoryId}"]`);
+                option.style.backgroundColor = '#f8f9fa';
+                option.style.borderColor = '#ddd';
+                option.style.color = '';
+                updateTags();
+              });
+              
+              tag.appendChild(removeBtn);
+              categoryTags.appendChild(tag);
+            });
+            
+            // 更新隐藏输入值
+            selectedCategoriesInput.value = Array.from(selectedCategories).join(',');
+          }
+          
+          // 颜色明暗调整函数
+          function shadeColor(color, percent) {
+            let R = parseInt(color.substring(1, 3), 16);
+            let G = parseInt(color.substring(3, 5), 16);
+            let B = parseInt(color.substring(5, 7), 16);
+
+            R = parseInt(R * (100 + percent) / 100);
+            G = parseInt(G * (100 + percent) / 100);
+            B = parseInt(B * (100 + percent) / 100);
+
+            R = (R < 255) ? R : 255;
+            G = (G < 255) ? G : 255;
+            B = (B < 255) ? B : 255;
+
+            R = Math.round(R);
+            G = Math.round(G);
+            B = Math.round(B);
+
+            const RR = ((R.toString(16).length === 1) ? "0" + R.toString(16) : R.toString(16));
+            const GG = ((G.toString(16).length === 1) ? "0" + G.toString(16) : G.toString(16));
+            const BB = ((B.toString(16).length === 1) ? "0" + B.toString(16) : B.toString(16));
+
+            return "#" + RR + GG + BB;
+          }
+        });
+      </script>
+      <div class="form-group">
+        <label for="issuing_unit">发文单位</label>
+        <input type="text" id="issuing_unit" name="issuing_unit" placeholder="请输入发文单位">
+      </div>
+      <div class="form-group">
+        <label for="remark">备注</label>
+        <textarea id="remark" name="remark" placeholder="请输入备注信息"></textarea>
+      </div>
+      <div class="action-buttons">
+        <a href="/" class="btn btn-secondary">返回首页</a>
+        <button type="submit">上传文档</button>
+      </div>
+    </form>
+    {% if message %}
+      <div class="message {{ message_type }}">
+        {{ message }}
+      </div>
+    {% endif %}
+  </div>
+  <footer>
+    <p>© 2026 文档检索系统 - 提升文档管理效率</p>
+  </footer>
+</body>
+</html>

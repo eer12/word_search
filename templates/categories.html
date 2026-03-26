@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>分类管理 - 文档检索系统</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Microsoft YaHei', Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 30px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    h1 {
+      color: #2c3e50;
+      font-size: 2rem;
+      margin-bottom: 15px;
+      font-weight: 600;
+    }
+    h2 {
+      color: #2c3e50;
+      font-size: 1.5rem;
+      margin-bottom: 20px;
+      font-weight: 500;
+      text-align: center;
+    }
+    .nav {
+      text-align: center;
+      margin-bottom: 30px;
+      padding: 10px 0;
+      background-color: rgba(255, 255, 255, 0.8);
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    .nav a {
+      margin: 0 15px;
+      text-decoration: none;
+      color: #3498db;
+      font-weight: 500;
+      font-size: 1rem;
+      transition: color 0.3s ease;
+    }
+    .nav a:hover {
+      color: #2980b9;
+    }
+    .category-list {
+      margin-top: 20px;
+      background-color: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+    .category-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px;
+      border-bottom: 1px solid #ddd;
+      transition: background-color 0.3s ease;
+    }
+    .category-item:hover {
+      background-color: #f8f9fa;
+    }
+    .category-item:last-child {
+      border-bottom: none;
+    }
+    .category-info {
+      flex: 1;
+    }
+    .category-info strong {
+      display: block;
+      color: #2c3e50;
+      font-size: 1.1rem;
+      margin-bottom: 5px;
+    }
+    .category-info p {
+      color: #666;
+      font-size: 0.9rem;
+      margin: 0;
+    }
+    .actions {
+      display: flex;
+      gap: 10px;
+    }
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: background-color 0.3s ease, transform 0.2s ease;
+    }
+    .btn-primary {
+      background-color: #3498db;
+      color: white;
+    }
+    .btn-primary:hover {
+      background-color: #2980b9;
+      transform: translateY(-2px);
+    }
+    .btn-secondary {
+      background-color: #95a5a6;
+      color: white;
+    }
+    .btn-secondary:hover {
+      background-color: #7f8c8d;
+      transform: translateY(-2px);
+    }
+    .btn-danger {
+      background-color: #e74c3c;
+      color: white;
+    }
+    .btn-danger:hover {
+      background-color: #c0392b;
+      transform: translateY(-2px);
+    }
+    .add-btn {
+      margin-bottom: 20px;
+      text-align: right;
+    }
+    .no-categories {
+      text-align: center;
+      padding: 40px;
+      color: #999;
+    }
+    footer {
+      text-align: center;
+      padding: 15px;
+      background-color: rgba(255, 255, 255, 0.8);
+      margin-top: 30px;
+      border-top: 1px solid #e0e0e0;
+    }
+    footer p {
+      color: #666;
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>文档检索系统</h1>
+      <div class="nav">
+        <a href="/">首页</a>
+        <a href="/upload">上传文档</a>
+        <a href="/merged-search">文档检索</a>
+        <a href="/categories">分类管理</a>
+        <a href="/settings">系统设置</a>
+      </div>
+    </header>
+    <h2>分类管理</h2>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <div class="add-btn">
+        <a href="/categories/add" class="btn btn-primary">添加分类</a>
+      </div>
+      <div style="display: flex; gap: 10px;">
+        <form action="/categories" method="get" style="display: flex; gap: 10px;">
+          <input type="text" name="search" placeholder="搜索分类名称" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem;" value="{{ search }}">
+          <button type="submit" class="btn btn-primary">搜索</button>
+        </form>
+      </div>
+    </div>
+    <div class="category-list">
+      {% for category in categories %}
+        <div class="category-item">
+          <div class="category-info">
+            <strong>{{ category[1] }}</strong>
+            {% if category[2] %}
+              <p>{{ category[2] }}</p>
+            {% endif %}
+          </div>
+          <div class="actions">
+            <a href="/categories/edit/{{ category[0] }}" class="btn btn-secondary">编辑</a>
+            <a href="/categories/delete/{{ category[0] }}" class="btn btn-danger" onclick="return confirm('确定要删除这个分类吗？');">删除</a>
+          </div>
+        </div>
+      {% else %}
+        <div class="no-categories">
+          <p>暂无分类，请添加分类。</p>
+        </div>
+      {% endfor %}
+    </div>
+    
+    <!-- 分页导航 -->
+    {% if total_pages > 1 %}
+    <div class="pagination" style="margin-top: 30px; text-align: center;">
+        <nav>
+            <ul style="list-style: none; padding: 0; display: inline-flex;">
+                {% if page > 1 %}
+                <li style="margin: 0 5px;">
+                    <a href="{{ url_for('categories', page=page-1, search=search) }}" style="padding: 8px 12px; border: 1px solid #ddd; text-decoration: none; color: #333; border-radius: 4px; transition: all 0.3s ease;">上一页</a>
+                </li>
+                {% endif %}
+                
+                {% for p in range(1, total_pages + 1) %}
+                <li style="margin: 0 5px;">
+                    <a href="{{ url_for('categories', page=p, search=search) }}" style="padding: 8px 12px; border: 1px solid #ddd; text-decoration: none; color: #333; border-radius: 4px; transition: all 0.3s ease;{% if p == page %} background-color: #3498db; color: white; border-color: #3498db;{% endif %}">{{ p }}</a>
+                </li>
+                {% endfor %}
+                
+                {% if page < total_pages %}
+                <li style="margin: 0 5px;">
+                    <a href="{{ url_for('categories', page=page+1, search=search) }}" style="padding: 8px 12px; border: 1px solid #ddd; text-decoration: none; color: #333; border-radius: 4px; transition: all 0.3s ease;">下一页</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+  </div>
+  <footer>
+    <p>© 2026 文档检索系统 - 提升文档管理效率</p>
+  </footer>
+</body>
+</html>

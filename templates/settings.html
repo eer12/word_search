@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>系统设置 - 文档检索系统</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Microsoft YaHei', Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 30px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    h1 {
+      color: #2c3e50;
+      font-size: 2rem;
+      margin-bottom: 15px;
+      font-weight: 600;
+    }
+    h2 {
+      color: #2c3e50;
+      font-size: 1.5rem;
+      margin-bottom: 20px;
+      font-weight: 500;
+      text-align: center;
+    }
+    .nav {
+      text-align: center;
+      margin-bottom: 30px;
+      padding: 10px 0;
+      background-color: rgba(255, 255, 255, 0.8);
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    .nav a {
+      margin: 0 15px;
+      text-decoration: none;
+      color: #3498db;
+      font-weight: 500;
+      font-size: 1rem;
+      transition: color 0.3s ease;
+    }
+    .nav a:hover {
+      color: #2980b9;
+    }
+    .settings-form {
+      background-color: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+    .form-group {
+      margin-bottom: 25px;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: #2c3e50;
+      font-size: 0.95rem;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      font-family: 'Microsoft YaHei', Arial, sans-serif;
+    }
+    .action-buttons {
+      margin-top: 30px;
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+    }
+    .btn {
+      padding: 10px 24px;
+      background-color: #3498db;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 500;
+      transition: background-color 0.3s ease, transform 0.2s ease;
+      text-decoration: none;
+      display: inline-block;
+      text-align: center;
+    }
+    .btn:hover {
+      background-color: #2980b9;
+      transform: translateY(-2px);
+    }
+    .btn-secondary {
+      background-color: #95a5a6;
+    }
+    .btn-secondary:hover {
+      background-color: #7f8c8d;
+    }
+    .message {
+      padding: 12px;
+      margin-top: 20px;
+      border-radius: 6px;
+      text-align: center;
+      background-color: white;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    .success {
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .error {
+      background-color: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .help-text {
+      font-size: 0.9rem;
+      color: #666;
+      margin-top: 8px;
+    }
+    .form-text {
+      font-size: 0.8rem;
+      color: #999;
+      margin-top: 5px;
+    }
+    footer {
+      text-align: center;
+      padding: 15px;
+      background-color: rgba(255, 255, 255, 0.8);
+      margin-top: 30px;
+      border-top: 1px solid #e0e0e0;
+    }
+    footer p {
+      color: #666;
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>文档检索系统</h1>
+      <div class="nav">
+        <a href="/">首页</a>
+        <a href="/upload">上传文档</a>
+        <a href="/merged-search">文档检索</a>
+        <a href="/categories">分类管理</a>
+        <a href="/settings">系统设置</a>
+      </div>
+    </header>
+    <h2>系统设置</h2>
+    <div class="settings-form">
+      <form method="POST">
+        <div class="form-group">
+          <label for="upload_folder">上传目录</label>
+          <input type="text" id="upload_folder" name="upload_folder" value="{{ upload_folder }}" required>
+          <p class="help-text">当前目录: {{ upload_folder }}</p>
+          <small class="form-text text-muted">请输入完整的上传目录路径，例如：D:\Documents\uploads</small>
+        </div>
+        <div class="action-buttons">
+          <a href="/" class="btn btn-secondary">返回首页</a>
+          <button type="submit" class="btn">保存设置</button>
+        </div>
+      </form>
+      {% if message %}
+        <div class="message {{ message_type }}">
+          {{ message }}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+  <footer>
+    <p>© 2026 文档检索系统 - 提升文档管理效率</p>
+  </footer>
+</body>
+</html>
