@@ -97,24 +97,7 @@ def init_db():
                     UNIQUE KEY (document_id, category_id) COMMENT '确保文档和分类的组合唯一'
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ''')
-            # 修改现有表结构，删除无用字段
-            try:
-                c.execute('ALTER TABLE documents DROP COLUMN content')
-                conn.commit()
-            except Exception as e:
-                print(f"删除content列失败: {e}")
-            
-            try:
-                c.execute('ALTER TABLE documents DROP COLUMN category_id')
-                conn.commit()
-            except Exception as e:
-                print(f"删除category_id列失败: {e}")
-            
-            try:
-                c.execute('ALTER TABLE documents DROP COLUMN file_type')
-                conn.commit()
-            except Exception as e:
-                print(f"删除file_type列失败: {e}")
+
             # 继续执行，不影响其他操作
             # 创建关键词分表（按文档ID范围分表）
             for i in range(10):  # 创建10个分表

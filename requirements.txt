@@ -5,3 +5,7 @@ mysql-connector-python
 pytesseract
 Pillow
 pdf2image
+waitress
+pywpsrpc
+jieba
+mammoth

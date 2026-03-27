@@ -536,15 +536,7 @@ default-character-set=utf8mb4
             else:
                 self.update_status(f"templates不存在: {templates_dir}")
             
-            # 复制launch.exe
-            launch_exe = os.path.join(source_dir, "launch.exe")
-            target_launch_exe = os.path.join(install_dir, "launch.exe")
-            self.update_status(f"尝试复制launch.exe: {launch_exe} -> {target_launch_exe}")
-            if os.path.exists(launch_exe):
-                shutil.copy2(launch_exe, target_launch_exe)
-                self.update_status("launch.exe复制成功")
-            else:
-                self.update_status(f"launch.exe不存在: {launch_exe}")
+            # 不再复制launch.exe，只保留launch_gui.exe
             
             # 复制run_production.py
             run_production_py = os.path.join(source_dir, "run_production.py")
@@ -555,6 +547,70 @@ default-character-set=utf8mb4
                 self.update_status("run_production.py复制成功")
             else:
                 self.update_status(f"run_production.py不存在: {run_production_py}")
+            
+            # 复制launch_gui.py
+            launch_gui_py = os.path.join(source_dir, "launch_gui.py")
+            target_launch_gui_py = os.path.join(install_dir, "launch_gui.py")
+            self.update_status(f"尝试复制launch_gui.py: {launch_gui_py} -> {target_launch_gui_py}")
+            if os.path.exists(launch_gui_py):
+                shutil.copy2(launch_gui_py, target_launch_gui_py)
+                self.update_status("launch_gui.py复制成功")
+            else:
+                self.update_status(f"launch_gui.py不存在: {launch_gui_py}")
+            
+            # 复制launch_gui.exe
+            launch_gui_exe = os.path.join(source_dir, "launch_gui.exe")
+            target_launch_gui_exe = os.path.join(install_dir, "launch_gui.exe")
+            self.update_status(f"尝试复制launch_gui.exe: {launch_gui_exe} -> {target_launch_gui_exe}")
+            
+            # 尝试多个路径查找launch_gui.exe
+            launch_gui_found = False
+            
+            # 1. 检查当前source_dir
+            if os.path.exists(launch_gui_exe):
+                shutil.copy2(launch_gui_exe, target_launch_gui_exe)
+                self.update_status("launch_gui.exe复制成功")
+                launch_gui_found = True
+            else:
+                # 2. 检查dist目录
+                dist_launch_gui_exe = os.path.join(source_dir, "dist", "launch_gui.exe")
+                if os.path.exists(dist_launch_gui_exe):
+                    shutil.copy2(dist_launch_gui_exe, target_launch_gui_exe)
+                    self.update_status("从dist目录复制launch_gui.exe成功")
+                    launch_gui_found = True
+                else:
+                    # 3. 检查当前可执行文件所在目录
+                    if getattr(sys, 'frozen', False):
+                        exe_dir = os.path.dirname(sys.executable)
+                        exe_dir_launch_gui = os.path.join(exe_dir, "launch_gui.exe")
+                        if os.path.exists(exe_dir_launch_gui):
+                            shutil.copy2(exe_dir_launch_gui, target_launch_gui_exe)
+                            self.update_status("从可执行文件目录复制launch_gui.exe成功")
+                            launch_gui_found = True
+                        else:
+                            # 4. 检查上级目录
+                            parent_dir = os.path.dirname(exe_dir)
+                            parent_launch_gui = os.path.join(parent_dir, "launch_gui.exe")
+                            if os.path.exists(parent_launch_gui):
+                                shutil.copy2(parent_launch_gui, target_launch_gui_exe)
+                                self.update_status("从上级目录复制launch_gui.exe成功")
+                                launch_gui_found = True
+                            else:
+                                # 5. 检查上级目录的dist目录
+                                parent_dist_launch_gui = os.path.join(parent_dir, "dist", "launch_gui.exe")
+                                if os.path.exists(parent_dist_launch_gui):
+                                    shutil.copy2(parent_dist_launch_gui, target_launch_gui_exe)
+                                    self.update_status("从上级目录的dist目录复制launch_gui.exe成功")
+                                    launch_gui_found = True
+            
+            if not launch_gui_found:
+                self.update_status(f"launch_gui.exe不存在，将创建一个临时启动脚本")
+                # 创建一个临时启动脚本
+                temp_launch_script = os.path.join(install_dir, "launch_gui.py")
+                if os.path.exists(temp_launch_script):
+                    self.update_status("使用launch_gui.py作为启动脚本")
+                else:
+                    self.update_status("警告: launch_gui.py也不存在")
             
             self.update_status("应用程序文件复制成功")
         except Exception as e:
@@ -567,7 +623,7 @@ default-character-set=utf8mb4
         self.update_progress(100)
         
         # 显示完成消息
-        messagebox.showinfo("安装成功", f"文档搜索系统安装成功！\n您可以在 {install_dir} 目录中运行 launch.exe 启动应用程序")
+        messagebox.showinfo("安装成功", f"文档搜索系统安装成功！\n您可以在 {install_dir} 目录中运行 launch_gui.exe 启动应用程序")
         
         # 退出程序
         self.root.quit()

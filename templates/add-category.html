@@ -3,36 +3,71 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>添加分类 - 文档检索系统</title>
+  <title>添加分类 - 文档本地存储检索系统1.2</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
+    * {
       margin: 0;
       padding: 0;
-      background-color: #f4f4f4;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Microsoft YaHei', Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
     }
     .container {
       max-width: 800px;
       margin: 0 auto;
       padding: 20px;
-      background-color: white;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      margin-top: 50px;
-      border-radius: 5px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 20px;
     }
     h1 {
-      text-align: center;
-      color: #333;
+      color: #2c3e50;
+      font-size: 2rem;
+      margin-bottom: 15px;
+      font-weight: 600;
     }
     .nav {
       text-align: center;
-      margin-bottom: 30px;
+      margin-bottom: 20px;
+      padding: 10px 0;
+      background-color: rgba(255, 255, 255, 0.8);
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     }
     .nav a {
-      margin: 0 10px;
+      margin: 0 15px;
       text-decoration: none;
-      color: #0066cc;
-      font-weight: bold;
+      color: #3498db;
+      font-weight: 500;
+      font-size: 1rem;
+      transition: color 0.3s ease;
+    }
+    .nav a:hover {
+      color: #2980b9;
+    }
+    .content-card {
+      background-color: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      margin-top: 10px;
+    }
+    h2 {
+      color: #2c3e50;
+      margin-bottom: 20px;
+      font-size: 1.3rem;
+      font-weight: 600;
     }
     .add-form {
       display: flex;
@@ -45,74 +80,94 @@
       gap: 5px;
     }
     label {
-      font-weight: bold;
+      font-weight: 500;
       color: #555;
     }
     input[type="text"], textarea {
       padding: 10px;
       border: 1px solid #ddd;
       border-radius: 4px;
+      font-family: inherit;
     }
     textarea {
       resize: vertical;
       min-height: 100px;
     }
-    button {
-      padding: 10px 20px;
-      background-color: #0066cc;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 16px;
-    }
-    button:hover {
-      background-color: #0052a3;
-    }
     .action-buttons {
       display: flex;
       gap: 10px;
+      margin-top: 10px;
     }
     .btn {
       padding: 10px 20px;
       border: none;
-      border-radius: 4px;
+      border-radius: 6px;
       cursor: pointer;
       text-decoration: none;
-      font-size: 16px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: background-color 0.3s ease, transform 0.2s ease;
     }
     .btn-secondary {
-      background-color: #666;
+      background-color: #95a5a6;
       color: white;
+    }
+    .btn-secondary:hover {
+      background-color: #7f8c8d;
+      transform: translateY(-2px);
+    }
+    .btn-primary {
+      background-color: #3498db;
+      color: white;
+    }
+    .btn-primary:hover {
+      background-color: #2980b9;
+      transform: translateY(-2px);
+    }
+    footer {
+      text-align: center;
+      padding: 15px;
+      background-color: rgba(255, 255, 255, 0.8);
+      margin-top: 30px;
+      border-top: 1px solid #e0e0e0;
+    }
+    footer p {
+      color: #666;
+      font-size: 0.8rem;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>文档检索系统</h1>
-    <div class="nav">
-      <a href="/">首页</a> | 
-      <a href="/upload">上传文档</a> | 
-      <a href="/search">搜索文档</a> | 
-      <a href="/file-list">文件列表</a> | 
-      <a href="/categories">分类管理</a> | 
-      <a href="/settings">系统设置</a>
+    <header>
+      <h1>文档本地存储检索系统1.2</h1>
+      <div class="nav">
+        <a href="/">首页</a>
+        <a href="/upload">上传文档</a>
+        <a href="/merged-search">文档检索</a>
+        <a href="/categories">分类管理</a>
+        <a href="/settings">系统设置</a>
+      </div>
+    </header>
+    <div class="content-card">
+      <h2>添加分类</h2>
+      <form class="add-form" action="/categories/add" method="post">
+        <div class="form-group">
+          <label for="name">分类名称</label>
+          <input type="text" id="name" name="name" required>
+        </div>
+        <div class="form-group">
+          <label for="description">分类描述</label>
+          <textarea id="description" name="description"></textarea>
+        </div>
+        <div class="action-buttons">
+          <a href="/categories" class="btn btn-secondary">返回</a>
+          <button type="submit" class="btn btn-primary">添加分类</button>
+        </div>
+      </form>
     </div>
-    <h2>添加分类</h2>
-    <form class="add-form" action="/categories/add" method="post">
-      <div class="form-group">
-        <label for="name">分类名称</label>
-        <input type="text" id="name" name="name" required>
-      </div>
-      <div class="form-group">
-        <label for="description">分类描述</label>
-        <textarea id="description" name="description"></textarea>
-      </div>
-      <div class="action-buttons">
-        <a href="/categories" class="btn btn-secondary">返回</a>
-        <button type="submit">添加分类</button>
-      </div>
-    </form>
   </div>
-</body>
-</html>
+  <footer>
+    <p>© 2026 文档检索系统 - 提升文档管理效率</p>
+  </footer>
+<
