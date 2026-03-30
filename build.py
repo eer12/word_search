@@ -36,7 +36,10 @@ def build_launch_gui():
         "--onefile",
         "--name", "launch_gui",
         "--windowed",
-        "--hidden-import", "tkinter",
+        "--collect-all", "tkinter",
+        "--hidden-import", "tkinter.ttk",
+        "--hidden-import", "tkinter.filedialog",
+        "--hidden-import", "tkinter.messagebox",
         "--hidden-import", "flask",
         "--hidden-import", "PyPDF2",
         "--hidden-import", "docx",
@@ -78,7 +81,7 @@ def build_gui_install():
     ]
     
     # 构建命令
-    cmd = ["pyinstaller", "--onefile", "--name", "gui_install", "--windowed", "--hidden-import", "tkinter", "--hidden-import", "flask", "--hidden-import", "PyPDF2", "--hidden-import", "docx", "--hidden-import", "pytesseract", "--hidden-import", "PIL", "--hidden-import", "pdf2image", "--hidden-import", "mysql.connector", "--hidden-import", "waitress", "--hidden-import", "sqlite3", "--hidden-import", "datetime", "--hidden-import", "tempfile", "--hidden-import", "subprocess", "--hidden-import", "re", "--hidden-import", "pywpsrpc", "--hidden-import", "jieba", "--hidden-import", "mammoth"]
+    cmd = ["pyinstaller", "--onefile", "--name", "gui_install", "--windowed", "--collect-all", "tkinter", "--hidden-import", "tkinter.ttk", "--hidden-import", "tkinter.filedialog", "--hidden-import", "tkinter.messagebox", "--hidden-import", "flask", "--hidden-import", "PyPDF2", "--hidden-import", "docx", "--hidden-import", "pytesseract", "--hidden-import", "PIL", "--hidden-import", "pdf2image", "--hidden-import", "mysql.connector", "--hidden-import", "waitress", "--hidden-import", "sqlite3", "--hidden-import", "datetime", "--hidden-import", "tempfile", "--hidden-import", "subprocess", "--hidden-import", "re", "--hidden-import", "pywpsrpc", "--hidden-import", "jieba", "--hidden-import", "mammoth"]
     
     # 添加数据文件
     for data_file in data_files:
