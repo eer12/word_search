@@ -402,28 +402,52 @@ def search_results():
         category_map[row[0]] = row[1]
     conn.close()
     
-    # 使用SQLite全文检索进行搜索，支持中文
+    # 使用SQLite进行搜索，支持中文
     conn = sqlite3.connect('documents.db')
     c = conn.cursor()
-    # 使用全文检索MATCH语句
-    sql = '''
-        SELECT DISTINCT documents.* 
-        FROM documents 
-        JOIN file_content_fts ON documents.id = file_content_fts.file_id 
-        WHERE file_content_fts MATCH ? AND documents.is_delete = 0 
-        ORDER BY documents.upload_time DESC
-    '''
-    # 对搜索词进行处理
-    try:
-        import jieba
-        # 使用jieba进行分词
-        seg_list = jieba.cut(query)
-        # 将分词结果用空格连接
-        seg_query = ' '.join(seg_list)
-        c.execute(sql, (seg_query,))
-    except ImportError:
-        # 如果jieba未安装，直接使用原内容
-        c.execute(sql, (query,))
+    
+    # 根据搜索词长度和是否包含标点符号选择不同的搜索策略
+    has_punctuation = any(p in query for p in [',', '，', '.', '。', '!', '！', '?', '？', '；', ':', '：'])
+    is_long_sentence = len(query) > 20
+    
+    if has_punctuation or is_long_sentence:
+        # 对于长句子或包含标点符号的搜索词，使用LIKE操作符
+        sql = '''
+            SELECT DISTINCT documents.* 
+            FROM documents 
+            JOIN file_content_fts ON documents.id = file_content_fts.file_id 
+            WHERE file_content_fts.content LIKE ? AND documents.is_delete = 0 
+            ORDER BY documents.upload_time DESC
+        '''
+        # 对搜索词进行分词处理
+        try:
+            import jieba
+            seg_list = jieba.cut(query)
+            seg_query = ' '.join(seg_list)
+            # 构建LIKE查询参数
+            like_param = '%' + seg_query + '%'
+        except ImportError:
+            # 如果jieba未安装，直接使用原内容
+            like_param = '%' + query + '%'
+        c.execute(sql, (like_param,))
+    else:
+        # 对于短关键词，使用FTS5 MATCH操作符（性能更好）
+        sql = '''
+            SELECT DISTINCT documents.* 
+            FROM documents 
+            JOIN file_content_fts ON documents.id = file_content_fts.file_id 
+            WHERE file_content_fts MATCH ? AND documents.is_delete = 0 
+            ORDER BY documents.upload_time DESC
+        '''
+        # 使用jieba对搜索词进行分词
+        try:
+            import jieba
+            seg_list = jieba.cut(query)
+            seg_query = ' '.join(seg_list)
+            c.execute(sql, (seg_query,))
+        except ImportError:
+            # 如果jieba未安装，直接使用原内容
+            c.execute(sql, (query,))
     results = c.fetchall()
     conn.close()
     
@@ -615,14 +639,13 @@ def file_list():
 def merged_search():
     # 获取搜索参数
     keyword = request.args.get('keyword', '')
-    sentence = request.args.get('sentence', '')
     category_id = request.args.get('category', '')
     page = request.args.get('page', 1, type=int)
     per_page = 10  # 每页显示10条记录
     offset = (page - 1) * per_page
     
-    # 如果有长句子搜索，优先使用句子进行搜索
-    search_term = sentence if sentence else keyword
+    # 使用关键词作为搜索词
+    search_term = keyword
     
     print(f"Search parameters: search_term='{search_term}', category_id='{category_id}', page={page}")
     
@@ -643,17 +666,38 @@ def merged_search():
     params = []
     
     if search_term:
-        # 使用SQLite全文检索，对搜索词进行分词后匹配
-        where_clause += ' AND d.id IN (SELECT file_id FROM file_content_fts WHERE file_content_fts MATCH ?)'
-        # 使用jieba对搜索词进行分词
-        try:
-            import jieba
-            seg_list = jieba.cut(search_term)
-            seg_keyword = ' '.join(seg_list)
-            params.append(seg_keyword)
-        except ImportError:
-            # 如果jieba未安装，直接使用原内容
-            params.append(search_term)
+        # 根据搜索词长度和是否包含标点符号选择不同的搜索策略
+        # 短关键词使用MATCH操作符（性能更好）
+        # 长句子或包含标点符号的搜索词使用LIKE操作符（更灵活）
+        has_punctuation = any(p in search_term for p in [',', '，', '.', '。', '!', '！', '?', '？', '；', ':', '：'])
+        is_long_sentence = len(search_term) > 20
+        
+        if has_punctuation or is_long_sentence:
+            # 对于长句子或包含标点符号的搜索词，使用LIKE操作符
+            where_clause += ' AND d.id IN (SELECT file_id FROM file_content_fts WHERE content LIKE ?)'
+            # 对搜索词进行分词处理
+            try:
+                import jieba
+                seg_list = jieba.cut(search_term)
+                seg_term = ' '.join(seg_list)
+                # 构建LIKE查询参数，在分词后的搜索词前后添加%通配符
+                like_param = '%' + seg_term + '%'
+            except ImportError:
+                # 如果jieba未安装，直接使用原内容
+                like_param = '%' + search_term + '%'
+            params.append(like_param)
+        else:
+            # 对于短关键词，使用FTS5 MATCH操作符（性能更好）
+            where_clause += ' AND d.id IN (SELECT file_id FROM file_content_fts WHERE file_content_fts MATCH ?)'
+            # 使用jieba对搜索词进行分词
+            try:
+                import jieba
+                seg_list = jieba.cut(search_term)
+                seg_keyword = ' '.join(seg_list)
+                params.append(seg_keyword)
+            except ImportError:
+                # 如果jieba未安装，直接使用原内容
+                params.append(search_term)
     
     if category_id and category_id != '':
         try:
@@ -793,7 +837,7 @@ def merged_search():
             'contexts': contexts
         })
     
-    return render_template('merged-search.html', files=files_list, page=page, total_pages=total_pages, per_page=per_page, categories=categories, keyword=keyword, sentence=sentence, category_id=category_id)
+    return render_template('merged-search.html', files=files_list, page=page, total_pages=total_pages, per_page=per_page, categories=categories, keyword=keyword, category_id=category_id)
 
 @app.route('/get-document-categories/<int:file_id>')
 def get_document_categories(file_id):
