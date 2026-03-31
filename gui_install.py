@@ -14,40 +14,6 @@ def is_admin():
     except:
         return False
 
-# MySQL配置
-# 获取当前脚本所在目录
-import sys
-import os
-
-# 确定MySQL安装路径
-if getattr(sys, 'frozen', False):
-    # 打包后的环境
-    base_dir = os.path.dirname(sys.executable)
-    # 检查当前目录下的mysql目录
-    MYSQL_INSTALL_PATH = os.path.join(base_dir, "mysql")
-    # 如果不存在，检查PyInstaller的临时目录结构
-    if not os.path.exists(MYSQL_INSTALL_PATH):
-        # 检查当前目录的所有子目录，寻找mysql
-        for root, dirs, files in os.walk(base_dir):
-            if "mysql" in dirs:
-                MYSQL_INSTALL_PATH = os.path.join(root, "mysql")
-                break
-else:
-    # 开发环境
-    # 首先检查当前目录下的mysql目录
-    MYSQL_INSTALL_PATH = os.path.join(os.getcwd(), "mysql")
-    # 如果不存在，检查上级目录
-    if not os.path.exists(MYSQL_INSTALL_PATH):
-        parent_dir = os.path.dirname(os.getcwd())
-        parent_mysql_path = os.path.join(parent_dir, "mysql")
-        if os.path.exists(parent_mysql_path):
-            MYSQL_INSTALL_PATH = parent_mysql_path
-
-MYSQL_DATA_PATH = os.path.join(MYSQL_INSTALL_PATH, "data")
-MYSQL_BIN_PATH = os.path.join(MYSQL_INSTALL_PATH, "bin")
-MYSQL_PORT = "3306"
-MYSQL_ROOT_PASSWORD = "123456"
-
 class InstallerApp:
     def __init__(self, root):
         self.root = root
@@ -110,207 +76,7 @@ class InstallerApp:
         self.progress_var.set(value)
         self.root.update_idletasks()
     
-    def check_local_mysql(self):
-        self.update_status("正在检查本地MySQL...")
-        self.update_progress(10)
-        try:
-            # 检查MySQL目录是否存在
-            if not os.path.exists(MYSQL_INSTALL_PATH):
-                self.update_status(f"错误: MySQL目录不存在，请确保MySQL在路径: {MYSQL_INSTALL_PATH}")
-                return False
-            
-            # 检查MySQL可执行文件是否存在
-            mysql_exe = os.path.join(MYSQL_BIN_PATH, "mysqld.exe")
-            if not os.path.exists(mysql_exe):
-                self.update_status("错误: MySQL可执行文件不存在，请确保MySQL安装正确")
-                return False
-            
-            self.update_status("本地MySQL检查成功")
-            self.update_progress(20)
-            return True
-        except Exception as e:
-            self.update_status(f"检查MySQL失败: {e}")
-            return False
-    
-    def configure_mysql(self):
-        self.update_status("正在配置MySQL...")
-        self.update_progress(30)
-        try:
-            # 检查MySQL可执行文件
-            mysqld_exe = os.path.join(MYSQL_BIN_PATH, "mysqld.exe")
-            if not os.path.exists(mysqld_exe):
-                self.update_status(f"错误: mysqld.exe不存在于路径: {mysqld_exe}")
-                return False
-            
-            # 初始化数据目录
-            if not os.path.exists(MYSQL_DATA_PATH):
-                self.update_status("初始化MySQL数据目录...")
-                init_cmd = mysqld_exe
-                try:
-                    result = subprocess.run([init_cmd, "--initialize-insecure"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=subprocess.CREATE_NO_WINDOW)
-                    if result.returncode != 0:
-                        self.update_status(f"初始化数据目录失败: {result.stderr.decode('utf-8', errors='ignore')}")
-                        return False
-                    self.update_status("数据目录初始化成功")
-                except Exception as e:
-                    self.update_status(f"初始化数据目录异常: {e}")
-                    return False
-            
-            # 创建my.ini配置文件
-            self.update_status("创建MySQL配置文件...")
-            my_ini_path = os.path.join(MYSQL_INSTALL_PATH, "my.ini")
-            my_ini_content = f"""
-[mysqld]
-basedir={MYSQL_INSTALL_PATH}
-datadir={MYSQL_DATA_PATH}
-port={MYSQL_PORT}
-character-set-server=utf8mb4
-default-storage-engine=INNODB
 
-[client]
-port={MYSQL_PORT}
-default-character-set=utf8mb4
-"""
-            try:
-                with open(my_ini_path, 'w', encoding='utf-8') as f:
-                    f.write(my_ini_content)
-                self.update_status("配置文件创建成功")
-            except Exception as e:
-                self.update_status(f"创建配置文件失败: {e}")
-                return False
-            
-            # 先尝试停止可能存在的MySQL服务
-            try:
-                mysqladmin_exe = os.path.join(MYSQL_BIN_PATH, "mysqladmin.exe")
-                if os.path.exists(mysqladmin_exe):
-                    self.update_status("停止正在运行的MySQL服务...")
-                    subprocess.run([mysqladmin_exe, "-u", "root", "shutdown"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=subprocess.CREATE_NO_WINDOW)
-                    time.sleep(2)
-            except Exception as e:
-                self.update_status(f"停止服务失败: {e}")
-            
-            # 卸载可能存在的MySQL服务
-            try:
-                self.update_status("卸载可能存在的MySQL服务...")
-                subprocess.run(["sc", "delete", "MySQL80"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=subprocess.CREATE_NO_WINDOW)
-                time.sleep(2)
-            except Exception as e:
-                self.update_status(f"卸载服务失败: {e}")
-            
-            # 尝试安装MySQL为Windows服务
-            service_installed = False
-            self.update_status("安装MySQL为Windows服务...")
-            try:
-                # 使用完整路径安装服务
-                install_result = subprocess.run([mysqld_exe, "--install", "MySQL80", f"--defaults-file={my_ini_path}"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=subprocess.CREATE_NO_WINDOW)
-                if install_result.returncode == 0:
-                    self.update_status("服务安装成功")
-                    time.sleep(2)
-                    # 检查服务是否真的安装成功
-                    check_result = subprocess.run(["sc", "query", "MySQL80"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=subprocess.CREATE_NO_WINDOW)
-                    if "SERVICE_NAME: MySQL80" in check_result.stdout.decode('utf-8', errors='ignore'):
-                        service_installed = True
-                        self.update_status("服务已成功注册")
-                    else:
-                        self.update_status("服务注册失败")
-                else:
-                    self.update_status(f"安装服务失败: {install_result.stderr.decode('utf-8', errors='ignore')}")
-            except Exception as e:
-                self.update_status(f"安装服务异常: {e}")
-            
-            # 启动MySQL
-            mysql_running = False
-            if service_installed:
-                # 尝试启动服务
-                self.update_status("启动MySQL服务...")
-                try:
-                    start_result = subprocess.run(["sc", "start", "MySQL80"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=subprocess.CREATE_NO_WINDOW)
-                    if start_result.returncode == 0:
-                        self.update_status("服务启动成功")
-                    else:
-                        self.update_status(f"启动服务失败: {start_result.stderr.decode('utf-8', errors='ignore')}")
-                        # 尝试使用net命令启动
-                        self.update_status("尝试使用net命令启动服务...")
-                        net_result = subprocess.run(["net", "start", "MySQL80"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=subprocess.CREATE_NO_WINDOW)
-                        if net_result.returncode == 0:
-                            self.update_status("net命令启动成功")
-                        else:
-                            self.update_status(f"net命令启动失败: {net_result.stderr.decode('utf-8', errors='ignore')}")
-                            service_installed = False
-                except Exception as e:
-                    self.update_status(f"启动服务异常: {e}")
-                    service_installed = False
-            
-            # 如果服务安装失败，尝试直接运行mysqld.exe作为后台进程
-            if not service_installed:
-                self.update_status("服务安装失败，尝试直接运行mysqld.exe...")
-                try:
-                    # 直接运行mysqld.exe作为后台进程
-                    mysqld_process = subprocess.Popen([mysqld_exe, "--defaults-file={my_ini_path}"], creationflags=subprocess.CREATE_NO_WINDOW)
-                    self.update_status("mysqld.exe已启动")
-                    time.sleep(5)
-                    # 检查进程是否在运行
-                    if mysqld_process.poll() is None:
-                        self.update_status("mysqld.exe进程正在运行")
-                        mysql_running = True
-                    else:
-                        self.update_status("mysqld.exe进程启动失败")
-                        return False
-                except Exception as e:
-                    self.update_status(f"直接运行mysqld.exe异常: {e}")
-                    return False
-            else:
-                # 等待服务启动
-                self.update_status("等待服务启动...")
-                for i in range(10):
-                    time.sleep(1)
-                    try:
-                        service_status = subprocess.run(["sc", "query", "MySQL80"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=subprocess.CREATE_NO_WINDOW)
-                        if "RUNNING" in service_status.stdout.decode('utf-8', errors='ignore'):
-                            self.update_status("MySQL服务启动成功")
-                            mysql_running = True
-                            break
-                    except:
-                        pass
-                    if i == 9:
-                        self.update_status("MySQL服务启动失败")
-                        return False
-            
-            if not mysql_running:
-                self.update_status("MySQL启动失败")
-                return False
-            
-            # 设置root密码
-            self.update_status("设置MySQL root密码...")
-            mysql_cmd = os.path.join(MYSQL_BIN_PATH, "mysql.exe")
-            if not os.path.exists(mysql_cmd):
-                self.update_status(f"错误: mysql.exe不存在于路径: {mysql_cmd}")
-                return False
-            
-            # 由于使用了--initialize-insecure，初始密码为空，所以不需要-p参数
-            # 先执行密码设置命令
-            password_cmd = f"ALTER USER 'root'@'localhost' IDENTIFIED BY '{MYSQL_ROOT_PASSWORD}';"
-            try:
-                subprocess.check_call([mysql_cmd, "-u", "root", "-e", password_cmd], creationflags=subprocess.CREATE_NO_WINDOW)
-            except Exception as e:
-                self.update_status(f"设置密码失败: {e}")
-                return False
-            
-            # 密码设置成功后，使用新密码执行FLUSH PRIVILEGES命令
-            # 使用--password参数而不是-p，避免交互式密码提示
-            flush_cmd = "FLUSH PRIVILEGES;"
-            try:
-                subprocess.check_call([mysql_cmd, "-u", "root", f"--password={MYSQL_ROOT_PASSWORD}", "-e", flush_cmd], creationflags=subprocess.CREATE_NO_WINDOW)
-            except Exception as e:
-                self.update_status(f"刷新权限失败: {e}")
-                return False
-            
-            self.update_status("MySQL配置成功")
-            self.update_progress(40)
-            return True
-        except Exception as e:
-            self.update_status(f"MySQL配置失败: {e}")
-            return False
     
     def install_dependencies(self):
         self.update_status("正在安装依赖...")
@@ -338,11 +104,6 @@ default-character-set=utf8mb4
             
             # 导入app模块
             import app
-            # 修改配置为使用本地MySQL
-            app.DB_CONFIG['host'] = 'localhost'
-            app.DB_CONFIG['user'] = 'root'
-            app.DB_CONFIG['password'] = MYSQL_ROOT_PASSWORD
-            app.DB_CONFIG['database'] = 'document_search'
             # 调用初始化函数
             app.init_db()
             self.update_status("数据库初始化成功")
@@ -353,94 +114,13 @@ default-character-set=utf8mb4
             return False
     
     def copy_mysql_to_install_dir(self, install_dir):
-        """将MySQL复制到安装目录"""
-        self.update_status("正在复制MySQL到安装目录...")
+        """由于使用SQLite，不再需要MySQL"""
+        self.update_status("正在准备数据库环境...")
         self.update_progress(25)
-        try:
-            # 目标MySQL目录
-            target_mysql_dir = os.path.join(install_dir, "mysql")
-            
-            # 如果目标目录存在，先删除
-            if os.path.exists(target_mysql_dir):
-                shutil.rmtree(target_mysql_dir)
-            
-            # 找到MySQL源目录
-            mysql_source_dir = None
-            
-            # 1. 首先检查PyInstaller的临时目录（_MEIPASS）
-            if getattr(sys, 'frozen', False):
-                if hasattr(sys, '_MEIPASS'):
-                    meipass_dir = sys._MEIPASS
-                    self.update_status(f"检查PyInstaller临时目录: {meipass_dir}")
-                    meipass_mysql = os.path.join(meipass_dir, "mysql")
-                    if os.path.exists(meipass_mysql):
-                        self.update_status(f"在MEIPASS中找到MySQL目录: {meipass_mysql}")
-                        mysql_source_dir = meipass_mysql
-            
-            # 2. 尝试使用全局变量
-            if not mysql_source_dir:
-                self.update_status(f"检查全局变量路径: {MYSQL_INSTALL_PATH}")
-                if os.path.exists(MYSQL_INSTALL_PATH):
-                    self.update_status(f"全局变量路径存在: {MYSQL_INSTALL_PATH}")
-                    mysql_source_dir = MYSQL_INSTALL_PATH
-            
-            # 3. 在打包环境中寻找MySQL目录
-            if not mysql_source_dir and getattr(sys, 'frozen', False):
-                # 获取当前可执行文件的目录
-                base_dir = os.path.dirname(sys.executable)
-                self.update_status(f"打包环境，检查目录: {base_dir}")
-                
-                # 直接检查当前目录下的mysql文件夹
-                current_mysql = os.path.join(base_dir, "mysql")
-                if os.path.exists(current_mysql):
-                    self.update_status(f"找到MySQL目录: {current_mysql}")
-                    mysql_source_dir = current_mysql
-                else:
-                    # 检查上级目录
-                    parent_dir = os.path.dirname(base_dir)
-                    parent_mysql = os.path.join(parent_dir, "mysql")
-                    if os.path.exists(parent_mysql):
-                        self.update_status(f"找到MySQL目录: {parent_mysql}")
-                        mysql_source_dir = parent_mysql
-                    else:
-                        # 搜索当前目录及其子目录
-                        self.update_status("搜索当前目录及其子目录...")
-                        for root, dirs, files in os.walk(base_dir):
-                            self.update_status(f"搜索目录: {root}")
-                            if "mysql" in dirs:
-                                mysql_source_dir = os.path.join(root, "mysql")
-                                self.update_status(f"找到MySQL目录: {mysql_source_dir}")
-                                break
-            
-            # 4. 开发环境，检查当前目录
-            if not mysql_source_dir:
-                current_dir = os.getcwd()
-                self.update_status(f"开发环境，检查当前目录: {current_dir}")
-                dev_mysql_path = os.path.join(current_dir, "mysql")
-                if os.path.exists(dev_mysql_path):
-                    self.update_status(f"开发环境找到MySQL目录: {dev_mysql_path}")
-                    mysql_source_dir = dev_mysql_path
-                else:
-                    # 检查上级目录
-                    parent_dir = os.path.dirname(current_dir)
-                    parent_mysql = os.path.join(parent_dir, "mysql")
-                    if os.path.exists(parent_mysql):
-                        self.update_status(f"开发环境找到MySQL目录: {parent_mysql}")
-                        mysql_source_dir = parent_mysql
-                
-            if not mysql_source_dir:
-                self.update_status("错误: 找不到MySQL源目录")
-                return None
-            
-            # 复制MySQL目录
-            self.update_status(f"开始复制MySQL从 {mysql_source_dir} 到 {target_mysql_dir}")
-            shutil.copytree(mysql_source_dir, target_mysql_dir)
-            self.update_status("MySQL复制成功")
-            self.update_progress(30)
-            return target_mysql_dir
-        except Exception as e:
-            self.update_status(f"复制MySQL失败: {e}")
-            return None
+        # 由于使用SQLite，不需要复制MySQL
+        self.update_status("数据库环境准备完成")
+        self.update_progress(30)
+        return True
     
     def start_install(self):
         # 禁用按钮
@@ -455,30 +135,9 @@ default-character-set=utf8mb4
         if not os.path.exists(install_dir):
             os.makedirs(install_dir)
         
-        # 复制MySQL到安装目录
-        target_mysql_dir = self.copy_mysql_to_install_dir(install_dir)
-        if not target_mysql_dir:
-            messagebox.showerror("安装失败", "复制MySQL失败，请检查错误信息")
-            self.install_btn.config(state=tk.NORMAL)
-            self.cancel_btn.config(state=tk.NORMAL)
-            return
-        
-        # 更新MySQL路径为安装目录中的路径
-        global MYSQL_INSTALL_PATH, MYSQL_DATA_PATH, MYSQL_BIN_PATH
-        MYSQL_INSTALL_PATH = target_mysql_dir
-        MYSQL_DATA_PATH = os.path.join(MYSQL_INSTALL_PATH, "data")
-        MYSQL_BIN_PATH = os.path.join(MYSQL_INSTALL_PATH, "bin")
-        
-        # 检查MySQL
-        if not self.check_local_mysql():
-            messagebox.showerror("安装失败", "MySQL检查失败，请检查错误信息")
-            self.install_btn.config(state=tk.NORMAL)
-            self.cancel_btn.config(state=tk.NORMAL)
-            return
-        
-        # 配置MySQL
-        if not self.configure_mysql():
-            messagebox.showerror("安装失败", "MySQL配置失败，请检查错误信息")
+        # 准备数据库环境（使用SQLite，不需要MySQL）
+        if not self.copy_mysql_to_install_dir(install_dir):
+            messagebox.showerror("安装失败", "数据库环境准备失败，请检查错误信息")
             self.install_btn.config(state=tk.NORMAL)
             self.cancel_btn.config(state=tk.NORMAL)
             return

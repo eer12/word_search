@@ -46,7 +46,6 @@ def build_launch_gui():
         "--hidden-import", "pytesseract",
         "--hidden-import", "PIL",
         "--hidden-import", "pdf2image",
-        "--hidden-import", "mysql.connector",
         "--hidden-import", "waitress",
         "--hidden-import", "sqlite3",
         "--hidden-import", "datetime",
@@ -71,7 +70,6 @@ def build_gui_install():
     
     # 准备数据文件参数
     data_files = [
-        f"mysql;mysql",
         f"app.py;.",
         f"config.py;.",
         f"run_production.py;.",
@@ -81,7 +79,7 @@ def build_gui_install():
     ]
     
     # 构建命令
-    cmd = ["pyinstaller", "--onefile", "--name", "gui_install", "--windowed", "--collect-all", "tkinter", "--hidden-import", "tkinter.ttk", "--hidden-import", "tkinter.filedialog", "--hidden-import", "tkinter.messagebox", "--hidden-import", "flask", "--hidden-import", "PyPDF2", "--hidden-import", "docx", "--hidden-import", "pytesseract", "--hidden-import", "PIL", "--hidden-import", "pdf2image", "--hidden-import", "mysql.connector", "--hidden-import", "waitress", "--hidden-import", "sqlite3", "--hidden-import", "datetime", "--hidden-import", "tempfile", "--hidden-import", "subprocess", "--hidden-import", "re", "--hidden-import", "pywpsrpc", "--hidden-import", "jieba", "--hidden-import", "mammoth"]
+    cmd = ["pyinstaller", "--onefile", "--name", "gui_install", "--windowed", "--collect-all", "tkinter", "--hidden-import", "tkinter.ttk", "--hidden-import", "tkinter.filedialog", "--hidden-import", "tkinter.messagebox", "--hidden-import", "flask", "--hidden-import", "PyPDF2", "--hidden-import", "docx", "--hidden-import", "pytesseract", "--hidden-import", "PIL", "--hidden-import", "pdf2image", "--hidden-import", "waitress", "--hidden-import", "sqlite3", "--hidden-import", "datetime", "--hidden-import", "tempfile", "--hidden-import", "subprocess", "--hidden-import", "re", "--hidden-import", "pywpsrpc", "--hidden-import", "jieba", "--hidden-import", "mammoth"]
     
     # 添加数据文件
     for data_file in data_files:
@@ -134,12 +132,7 @@ def main():
     print("开始打包文档搜索系统...")
     print(f"项目根目录: {PROJECT_ROOT}")
     print(f"输出目录: {DIST_DIR}")
-    print(f"MySQL目录: {MYSQL_DIR}")
-    
-    # 检查MySQL目录
-    if not os.path.exists(MYSQL_DIR):
-        print("错误: MySQL目录不存在")
-        return 1
+    # 由于使用SQLite，不再需要MySQL目录
     
     # 构建launch_gui
     if not build_launch_gui():

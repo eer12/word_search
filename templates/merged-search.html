@@ -243,6 +243,62 @@
         cursor: not-allowed;
         pointer-events: none;
     }
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0,0,0,0.4);
+    }
+    .modal-content {
+        background-color: #fefefe;
+        margin: 15% auto;
+        padding: 20px;
+        border: 1px solid #888;
+        width: 80%;
+        max-width: 500px;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    .close {
+        color: #aaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    .close:hover,
+    .close:focus {
+        color: black;
+        text-decoration: none;
+        cursor: pointer;
+    }
+    .category-options {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 20px 0;
+    }
+    .category-option {
+        padding: 8px 16px;
+        border: 1px solid #ddd;
+        border-radius: 20px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 0.9rem;
+    }
+    .category-option:hover {
+        background-color: #f0f0f0;
+    }
+    .category-option.selected {
+        background-color: #3498db;
+        color: white;
+        border-color: #2980b9;
+    }
     footer {
       text-align: center;
       padding: 15px;
@@ -272,7 +328,6 @@
     document.addEventListener('DOMContentLoaded', function() {
       // 预定义的标签颜色，选择高级感的莫兰迪色系
       const tagColors = [
-        '#6B7280', // 高级灰
         '#4F46E5', // 靛蓝色
         '#EC4899', // 玫瑰粉
         '#10B981', // 翠绿色
@@ -281,7 +336,18 @@
         '#06B6D4', // 青蓝色
         '#EF4444', // 珊瑚红
         '#14B8A6', // 薄荷绿
-        '#3B82F6'  // 矢车菊蓝
+        '#3B82F6', // 矢车菊蓝
+        '#F97316', // 橙色
+        '#84CC16', // 酸橙绿
+        '#6366F1', // 靛青蓝
+        '#EC4899', // 粉红
+        '#F43F5E', // 玫红色
+        '#0EA5E9', // 亮蓝色
+        '#8B5CF6', // 深紫色
+        '#10B981', // 翡翠绿
+        '#F59E0B', // 金黄色
+        '#6366F1', // 靛蓝色
+        '#EC4899'  // 蔷薇粉
       ];
 
       // 存储分类ID对应的颜色，确保同一分类始终使用相同颜色
@@ -304,6 +370,135 @@
       });
     });
   </script>
+  <!-- 分类修改模态框 -->
+  <div id="editCategoryModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h3>修改文档分类</h3>
+      <p id="modalFileName"></p>
+      <div class="category-options" id="categoryOptions"></div>
+      <input type="hidden" id="currentFileId">
+      <button id="saveCategoryBtn">保存修改</button>
+    </div>
+  </div>
+  <script>
+    // 分类修改模态框
+    const modal = document.getElementById('editCategoryModal');
+    const closeBtn = document.querySelector('.close');
+    const saveBtn = document.getElementById('saveCategoryBtn');
+    const categoryOptions = document.getElementById('categoryOptions');
+    const modalFileName = document.getElementById('modalFileName');
+    const currentFileId = document.getElementById('currentFileId');
+    
+    // 打开分类修改模态框
+    function openEditCategoryModal(fileId) {
+      currentFileId.value = fileId;
+      
+      // 获取文件名
+      const fileName = document.querySelector(`tr[data-file-id="${fileId}"] td:first-child`).textContent;
+      modalFileName.textContent = `文件：${fileName}`;
+      
+      // 获取所有分类
+      fetch('/categories')
+        .then(response => response.text())
+        .then(html => {
+          // 从HTML中提取分类列表
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(html, 'text/html');
+          const categoryItems = doc.querySelectorAll('.category-item');
+          const categories = [];
+          
+          categoryItems.forEach(item => {
+            const name = item.querySelector('.category-info strong').textContent;
+            // 从编辑链接中提取ID
+            const editLink = item.querySelector('.actions a:first-child').href;
+            const id = editLink.split('/').pop();
+            categories.push({ id, name });
+          });
+          
+          // 清空现有选项
+          categoryOptions.innerHTML = '';
+          
+          // 获取文档当前分类
+          fetch(`/get-document-categories/${fileId}`)
+            .then(response => response.json())
+            .then(currentCategories => {
+              const currentCategoryIds = currentCategories.map(cat => cat.id);
+              
+              // 添加分类选项
+              categories.forEach(category => {
+                const option = document.createElement('div');
+                option.className = `category-option ${currentCategoryIds.includes(category.id) ? 'selected' : ''}`;
+                option.dataset.id = category.id;
+                option.textContent = category.name;
+                option.addEventListener('click', function() {
+                  this.classList.toggle('selected');
+                });
+                categoryOptions.appendChild(option);
+              });
+              
+              // 显示模态框
+              modal.style.display = 'block';
+            });
+        });
+    }
+    
+    // 关闭模态框
+    closeBtn.addEventListener('click', function() {
+      modal.style.display = 'none';
+    });
+    
+    // 点击模态框外部关闭
+    window.addEventListener('click', function(event) {
+      if (event.target == modal) {
+        modal.style.display = 'none';
+      }
+    });
+    
+    // 保存分类修改
+    saveBtn.addEventListener('click', function() {
+      const fileId = currentFileId.value;
+      const selectedCategories = [];
+      
+      // 获取选中的分类
+      document.querySelectorAll('.category-option.selected').forEach(option => {
+        selectedCategories.push(option.dataset.id);
+      });
+      
+      // 发送请求保存修改
+      fetch('/update-document-categories', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ file_id: fileId, category_ids: selectedCategories })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          // 刷新页面
+          location.reload();
+        } else {
+          alert('修改分类失败');
+        }
+      });
+    });
+    
+    // 为表格行添加data-file-id属性
+    document.addEventListener('DOMContentLoaded', function() {
+      const fileRows = document.querySelectorAll('tbody tr');
+      fileRows.forEach(row => {
+        const actionButtons = row.querySelector('.action-buttons');
+        if (actionButtons) {
+          const viewLink = actionButtons.querySelector('a.btn-primary');
+          if (viewLink) {
+            const fileId = viewLink.href.split('/').pop();
+            row.dataset.fileId = fileId;
+          }
+        }
+      });
+    });
+  </script>
 </head>
 <body>
   <div class="container">
@@ -322,6 +517,10 @@
       <div class="form-group">
         <label for="keyword">关键词</label>
         <input type="text" id="keyword" name="keyword" placeholder="输入关键词搜索文档..." value="{{ keyword }}">
+      </div>
+      <div class="form-group">
+        <label for="sentence">长句子搜索</label>
+        <textarea id="sentence" name="sentence" placeholder="输入长句子进行搜索..." rows="3" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem; font-family: 'Microsoft YaHei', Arial, sans-serif;">{{ sentence }}</textarea>
       </div>
       <div class="form-group">
         <label for="category">分类</label>
@@ -355,15 +554,27 @@
                 <td class="file-size">{{ file.file_size }}</td>
                 <td>
                   {% if file.categories %}
-                    <div class="category-tags" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                    <div class="category-tags" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
                       {% for category in file.categories %}
                         <span class="category-tag" data-id="{{ category[0] }}" style="display: inline-block; padding: 4px 10px; border-radius: 16px; font-size: 0.8rem; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.3s ease;">
                           {{ category[1] }}
                         </span>
                       {% endfor %}
+                      {% if file.file_exists %}
+                      <button class="btn btn-secondary" onclick="openEditCategoryModal({{ file.id }})" style="padding: 4px 8px; font-size: 0.75rem;">修改</button>
+                      {% else %}
+                      <button class="btn btn-secondary disabled" disabled style="padding: 4px 8px; font-size: 0.75rem;">修改</button>
+                      {% endif %}
                     </div>
                   {% else %}
-                    未分类
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      未分类
+                      {% if file.file_exists %}
+                      <button class="btn btn-secondary" onclick="openEditCategoryModal({{ file.id }})" style="padding: 4px 8px; font-size: 0.75rem;">修改</button>
+                      {% else %}
+                      <button class="btn btn-secondary disabled" disabled style="padding: 4px 8px; font-size: 0.75rem;">修改</button>
+                      {% endif %}
+                    </div>
                   {% endif %}
                 </td>
                 <td>{{ file.issuing_unit }}</td>
