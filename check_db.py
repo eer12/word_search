@@ -1,30 +1,34 @@
 import sqlite3
 
-# 连接到数据库
+# 连接数据库
 conn = sqlite3.connect('documents.db')
 c = conn.cursor()
 
-# 查询file_content_fts表中的所有数据
-print("file_content_fts表中的数据：")
-c.execute('SELECT rowid, * FROM file_content_fts')
-rows = c.fetchall()
-for row in rows:
-    print(f"Row ID: {row[0]}, Content: {row[1][:200]}..., File ID: {row[2]}")
+# 查看file_content_fts表的结构
+print("file_content_fts表的结构：")
+c.execute('PRAGMA table_info(file_content_fts)')
+columns = c.fetchall()
+for column in columns:
+    print(f"Column ID: {column[0]}, Name: {column[1]}, Type: {column[2]}, Not Null: {column[3]}, Default: {column[4]}, Primary Key: {column[5]}")
 
-# 查询documents表中的对应文件信息
+# 查询file_content_fts表
+print("\nfile_content_fts表中的数据：")
+c.execute('SELECT * FROM file_content_fts')
+rows = c.fetchall()
+print(f"总共有 {len(rows)} 行数据")
+for i, row in enumerate(rows):
+    print(f"\nRow {i+1}:")
+    print(f"  数据: {row}")
+    print(f"  长度: {len(row)}")
+    for j, value in enumerate(row):
+        print(f"  列 {j}: {value}")
+
+# 查询documents表
 print("\ndocuments表中的文件信息：")
 c.execute('SELECT id, file_name, file_path FROM documents')
 doc_rows = c.fetchall()
 for doc_row in doc_rows:
     print(f"ID: {doc_row[0]}, File Name: {doc_row[1]}, File Path: {doc_row[2]}")
 
-# 查询特定行的数据
-print("\n查询第14行数据：")
-c.execute('SELECT rowid, * FROM file_content_fts WHERE rowid = 14')
-row14 = c.fetchone()
-if row14:
-    print(f"Row ID: {row14[0]}, Content: {row14[1][:500]}..., File ID: {row14[2]}")
-else:
-    print("未找到第14行数据")
-
+# 关闭连接
 conn.close()
