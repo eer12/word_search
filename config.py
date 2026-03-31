@@ -3,9 +3,9 @@ import os
 # 系统配置
 class Config:
     # 默认上传目录
-    UPLOAD_FOLDER = r'D:\backup'
+    UPLOAD_FOLDER = r'C:\backup'
     # 允许的文件类型
-    ALLOWED_EXTENSIONS = {'docx', 'pdf', 'doc', 'wps'}
+    ALLOWED_EXTENSIONS = {'docx', 'pdf', 'doc', 'wps', 'txt'}
     
     # MySQL数据库配置
     DB_CONFIG = {

@@ -193,6 +193,23 @@ def extract_text_from_wps(filepath):
         print(f"处理WPS文件失败: {e}")
     return text
 
+def extract_text_from_txt(filepath):
+    text = ''
+    try:
+        # 尝试使用utf-8编码读取
+        with open(filepath, 'r', encoding='utf-8') as file:
+            text = file.read()
+    except UnicodeDecodeError:
+        # 如果utf-8失败，尝试使用gbk编码
+        try:
+            with open(filepath, 'r', encoding='gbk') as file:
+                text = file.read()
+        except Exception as e:
+            print(f"处理TXT文件失败: {e}")
+    except Exception as e:
+        print(f"处理TXT文件失败: {e}")
+    return text
+
 def extract_context(text, keyword, max_chars=200):
     # 提取关键词前后的上下文，直到逗号或句号为止
     import re
@@ -307,6 +324,8 @@ def upload_file():
             file_type_folder = 'docx'
         elif file.filename.endswith('.wps'):
             file_type_folder = 'wps'
+        elif file.filename.endswith('.txt'):
+            file_type_folder = 'txt'
         else:
             file_type_folder = 'other'
         upload_folder = os.path.join(app.config['UPLOAD_FOLDER'], file_type_folder)
@@ -329,6 +348,8 @@ def upload_file():
             content = extract_text_from_doc(filepath)
         elif file.filename.endswith('.wps'):
             content = extract_text_from_wps(filepath)
+        elif file.filename.endswith('.txt'):
+            content = extract_text_from_txt(filepath)
         
         # 获取文件大小
         file_size = os.path.getsize(filepath)
@@ -1011,6 +1032,8 @@ def view_file(file_id):
                 mime_type = 'application/msword' if file_ext == 'doc' else 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
             elif file_ext == 'wps':
                 mime_type = 'application/vnd.ms-works'
+            elif file_ext == 'txt':
+                mime_type = 'text/plain'
             
             # 格式化文件大小
             def format_file_size(size):
@@ -1080,6 +1103,8 @@ def get_file(file_id):
                 mime_type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
             elif file_ext == 'wps':
                 mime_type = 'application/vnd.ms-works'
+            elif file_ext == 'txt':
+                mime_type = 'text/plain'
             
             # 使用Flask的send_file函数发送文件
             from flask import send_file
