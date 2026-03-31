@@ -71,10 +71,21 @@
       <a href="/categories">分类管理</a> | 
       <a href="/settings">系统设置</a>
     </div>
+    <h2>搜索文档</h2>
     <form class="search-form" action="/search-results" method="get">
-      <input type="text" name="q" placeholder="输入关键词搜索文档..." required>
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px;">关键词搜索 (MATCH)</label>
+        <input type="text" name="match" placeholder="输入关键词进行搜索...">
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px;">全文搜索 (LIKE)</label>
+        <input type="text" name="like" placeholder="输入句子或短语进行全文搜索...">
+      </div>
       <button type="submit">搜索</button>
     </form>
+    <p style="margin-top: 20px; font-size: 14px; color: #666;">
+      提示：关键词搜索适合单个或多个关键词，全文搜索适合完整句子或短语
+    </p>
   </div>
 </body>
 </html>
