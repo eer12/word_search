@@ -81,6 +81,15 @@
         <label style="display: block; margin-bottom: 5px;">全文搜索 (LIKE)</label>
         <input type="text" name="like" placeholder="输入句子或短语进行全文搜索...">
       </div>
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px;">分类</label>
+        <select name="category">
+          <option value="">全部分类</option>
+          {% for category in categories %}
+            <option value="{{ category[0] }}">{{ category[1] }}</option>
+          {% endfor %}
+        </select>
+      </div>
       <button type="submit">搜索</button>
     </form>
     <p style="margin-top: 20px; font-size: 14px; color: #666;">

@@ -290,7 +290,14 @@ def upload_page():
 
 @app.route('/search')
 def search():
-    return render_template('search.html')
+    # 获取分类列表
+    categories = []
+    conn = sqlite3.connect('documents.db')
+    c = conn.cursor()
+    c.execute('SELECT id, name FROM categories')
+    categories = c.fetchall()
+    conn.close()
+    return render_template('search.html', categories=categories)
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -405,6 +412,7 @@ def upload_file():
 def search_results():
     match_query = request.args.get('match')
     like_query = request.args.get('like')
+    category_id = request.args.get('category', '')
     
     # 确保至少有一个搜索框有输入
     if not match_query and not like_query:
@@ -423,35 +431,61 @@ def search_results():
     conn = sqlite3.connect('documents.db')
     c = conn.cursor()
     
-    # 根据用户选择的搜索类型执行不同的搜索策略
+    # 构建查询和参数
     if match_query:
         # 使用FTS5 MATCH操作符进行精确匹配
-        sql = '''
-            SELECT DISTINCT documents.* 
-            FROM documents 
-            JOIN file_content_fts ON documents.id = file_content_fts.file_id 
-            WHERE file_content_fts MATCH ? AND documents.is_delete = 0 
-            ORDER BY documents.upload_time DESC
-        '''
+        if category_id:
+            sql = '''
+                SELECT DISTINCT documents.* 
+                FROM documents 
+                JOIN file_content_fts ON documents.id = file_content_fts.file_id 
+                JOIN document_categories ON documents.id = document_categories.document_id
+                WHERE file_content_fts MATCH ? AND document_categories.category_id = ? AND documents.is_delete = 0 
+                ORDER BY documents.upload_time DESC
+            '''
+        else:
+            sql = '''
+                SELECT DISTINCT documents.* 
+                FROM documents 
+                JOIN file_content_fts ON documents.id = file_content_fts.file_id 
+                WHERE file_content_fts MATCH ? AND documents.is_delete = 0 
+                ORDER BY documents.upload_time DESC
+            '''
         # 使用jieba对搜索词进行分词
         try:
             import jieba
             seg_list = jieba.cut(match_query)
             seg_query = ' '.join(seg_list)
-            c.execute(sql, (seg_query,))
+            if category_id:
+                c.execute(sql, (seg_query, category_id))
+            else:
+                c.execute(sql, (seg_query,))
         except ImportError:
             # 如果jieba未安装，直接使用原内容
-            c.execute(sql, (match_query,))
+            if category_id:
+                c.execute(sql, (match_query, category_id))
+            else:
+                c.execute(sql, (match_query,))
         query = match_query
     else:
         # 使用LIKE操作符进行模糊匹配
-        sql = '''
-            SELECT DISTINCT documents.* 
-            FROM documents 
-            JOIN file_content_fts ON documents.id = file_content_fts.file_id 
-            WHERE file_content_fts.content LIKE ? AND documents.is_delete = 0 
-            ORDER BY documents.upload_time DESC
-        '''
+        if category_id:
+            sql = '''
+                SELECT DISTINCT documents.* 
+                FROM documents 
+                JOIN file_content_fts ON documents.id = file_content_fts.file_id 
+                JOIN document_categories ON documents.id = document_categories.document_id
+                WHERE file_content_fts.content LIKE ? AND document_categories.category_id = ? AND documents.is_delete = 0 
+                ORDER BY documents.upload_time DESC
+            '''
+        else:
+            sql = '''
+                SELECT DISTINCT documents.* 
+                FROM documents 
+                JOIN file_content_fts ON documents.id = file_content_fts.file_id 
+                WHERE file_content_fts.content LIKE ? AND documents.is_delete = 0 
+                ORDER BY documents.upload_time DESC
+            '''
         # 对搜索词进行分词处理
         try:
             import jieba
@@ -462,7 +496,10 @@ def search_results():
         except ImportError:
             # 如果jieba未安装，直接使用原内容
             like_param = '%' + like_query + '%'
-        c.execute(sql, (like_param,))
+        if category_id:
+            c.execute(sql, (like_param, category_id))
+        else:
+            c.execute(sql, (like_param,))
         query = like_query
     results = c.fetchall()
     conn.close()
@@ -837,18 +874,18 @@ def merged_search():
         remark = file[8] if file[8] else ''
         
         # 获取文档的所有分类
-        categories = []
+        file_categories = []
         if DB_TYPE == 'mysql':
             conn = mysql.connector.connect(**DB_CONFIG)
             c = conn.cursor()
             c.execute('SELECT c.id, c.name FROM document_categories dc JOIN categories c ON dc.category_id = c.id WHERE dc.document_id = %s', (file[0],))
-            categories = c.fetchall()
+            file_categories = c.fetchall()
             conn.close()
         else:
             conn = sqlite3.connect('documents.db')
             c = conn.cursor()
             c.execute('SELECT c.id, c.name FROM document_categories dc JOIN categories c ON dc.category_id = c.id WHERE dc.document_id = ?', (file[0],))
-            categories = c.fetchall()
+            file_categories = c.fetchall()
             conn.close()
         
         # 提取关键词上下文
@@ -897,7 +934,7 @@ def merged_search():
             'file_folder': file_folder,
             'file_exists': file_exists,
             'file_size': format_file_size(file[3]),
-            'categories': categories,
+            'categories': file_categories,
             'upload_date': upload_date_str,
             'issuing_unit': issuing_unit,
             'remark': remark,
