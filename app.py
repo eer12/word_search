@@ -560,6 +560,60 @@ def delete_category(id):
     
     return redirect(url_for('categories'))
 
+@app.route('/files/delete/<int:id>')
+def delete_file(id):
+    # 获取来源页面和搜索参数
+    from_page = request.args.get('from', '')
+    keyword = request.args.get('keyword', '')
+    category_id = request.args.get('category', '')
+    
+    # 真数据库删除，同时删除相关的关联数据
+    conn = sqlite3.connect('documents.db')
+    c = conn.cursor()
+    
+    # 获取文件路径，用于删除物理文件
+    c.execute('SELECT file_path FROM documents WHERE id = ?', (id,))
+    file_path = c.fetchone()
+    
+    # 删除关联的分类关系
+    c.execute('DELETE FROM document_categories WHERE document_id = ?', (id,))
+    # 删除全文检索记录
+    c.execute('DELETE FROM file_content_fts WHERE file_id = ?', (id,))
+    # 删除文档记录
+    c.execute('DELETE FROM documents WHERE id = ?', (id,))
+    
+    conn.commit()
+    conn.close()
+    
+    # 移动文件到is delete文件夹，而不是删除
+    if file_path and file_path[0]:
+        try:
+            import os
+            if os.path.exists(file_path[0]):
+                # 获取文件所在的上一级文件夹
+                file_dir = os.path.dirname(file_path[0])
+                parent_dir = os.path.dirname(file_dir)
+                # 构建is delete文件夹路径
+                delete_dir = os.path.join(parent_dir, 'is delete')
+                # 如果is delete文件夹不存在，创建它
+                if not os.path.exists(delete_dir):
+                    os.makedirs(delete_dir)
+                    print(f"创建is delete文件夹: {delete_dir}")
+                # 构建目标文件路径
+                file_name = os.path.basename(file_path[0])
+                dest_path = os.path.join(delete_dir, file_name)
+                # 移动文件
+                os.rename(file_path[0], dest_path)
+                print(f"已移动文件到: {dest_path}")
+        except Exception as e:
+            print(f"移动文件失败: {e}")
+    
+    # 根据来源页面进行不同的重定向
+    if from_page == 'search':
+        return redirect(url_for('merged_search', keyword=keyword, category=category_id))
+    else:
+        return redirect(url_for('file_list'))
+
 # 文件列表路由
 @app.route('/file-list')
 def file_list():

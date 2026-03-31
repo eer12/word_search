@@ -127,6 +127,7 @@
                   <div class="action-buttons">
                     <a href="{{ file.filepath }}" class="btn btn-primary" target="_blank">查看</a>
                     <a href="{{ file.filepath }}" class="btn btn-secondary" download>下载</a>
+                    <a href="/files/delete/{{ file.id }}" class="btn" style="background-color: #ff4444; color: white;" onclick="return confirm('确定要删除此文件吗？');">删除</a>
                   </div>
                 </td>
               </tr>

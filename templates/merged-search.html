@@ -582,10 +582,12 @@
                     <a href="/view-file/{{ file.id }}" class="btn btn-primary" target="_blank">查看</a>
                     <a href="/download-file/{{ file.id }}" class="btn btn-secondary">下载</a>
                     <button class="btn btn-tertiary" onclick="openFileLocation({{ file.id }})">打开文件位置</button>
+                    <a href="/files/delete/{{ file.id }}?from=search&keyword={{ keyword }}&category={{ category_id }}" class="btn" style="background-color: #ff4444; color: white;" onclick="return confirm('确定要删除此文件吗？');">删除</a>
                     {% else %}
                     <a href="#" class="btn btn-primary disabled" disabled>查看</a>
                     <a href="#" class="btn btn-secondary disabled" disabled>下载</a>
                     <button class="btn btn-tertiary disabled" disabled>打开文件位置</button>
+                    <a href="#" class="btn disabled" style="background-color: #ff4444; color: white; cursor: not-allowed;" disabled>删除</a>
                     {% endif %}
                   </div>
                 </td>
