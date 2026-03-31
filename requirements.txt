@@ -8,3 +8,6 @@ waitress
 pywpsrpc
 jieba
 mammoth
+olefile
+docx2txt
+pywin32

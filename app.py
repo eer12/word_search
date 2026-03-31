@@ -176,22 +176,248 @@ def extract_text_from_doc(filepath):
             print(f"尝试使用python-docx处理DOC文件失败: {e2}")
     return text
 
+# 尝试导入WPS相关库
+WPS_AVAILABLE = False
+try:
+    from pywpsrpc import WpsRpcClient
+    from pywpsrpc.app import wps
+    WPS_AVAILABLE = True
+    print("pywpsrpc库加载成功")
+except ImportError as e:
+    print(f"pywpsrpc库未安装: {e}")
+    # 不再尝试自动安装pywpsrpc库，因为它需要WPS SDK
+    print("跳过pywpsrpc库安装，使用备用方法处理WPS文件")
+
 def extract_text_from_wps(filepath):
+    """
+    从WPS文件中提取文本内容。
+    支持新旧两种格式的WPS文件：
+    - 新格式（类似DOCX的ZIP格式）
+    - 旧格式（OLE格式）
+    """
     text = ''
+    
+    print(f"开始处理WPS文件: {filepath}")
+    
+    # 方法1: 尝试使用python-docx（新格式WPS文件）
     try:
-        # 使用pywpsrpc库处理wps文件
-        from pywpsrpc import WpsRpcClient
-        from pywpsrpc.app import wps
-        
-        client = WpsRpcClient()
-        app = client.getWpsApplication()
-        doc = app.Documents.Open(filepath)
-        text = doc.Content.Text
-        doc.Close()
-        app.Quit()
+        doc = Document(filepath)
+        text_parts = []
+        for paragraph in doc.paragraphs:
+            if paragraph.text.strip():
+                text_parts.append(paragraph.text)
+        text = '\n'.join(text_parts)
+        if len(text.strip()) > 50:
+            print(f"方法1成功: 使用python-docx提取文本，长度: {len(text)}")
+            return text
     except Exception as e:
-        print(f"处理WPS文件失败: {e}")
-    return text
+        print(f"方法1失败: python-docx无法处理: {e}")
+    
+    # 方法2: 尝试使用docx2txt（新格式WPS文件）
+    try:
+        import docx2txt
+        text = docx2txt.process(filepath)
+        if len(text.strip()) > 50:
+            print(f"方法2成功: 使用docx2txt提取文本，长度: {len(text)}")
+            return text
+    except Exception as e:
+        print(f"方法2失败: docx2txt无法处理: {e}")
+    
+    # 方法3: 尝试使用mammoth（新格式WPS文件）
+    try:
+        import mammoth
+        with open(filepath, 'rb') as f:
+            result = mammoth.extract_raw_text(f)
+            text = result.value
+            if len(text.strip()) > 50:
+                print(f"方法3成功: 使用mammoth提取文本，长度: {len(text)}")
+                return text
+    except Exception as e:
+        print(f"方法3失败: mammoth无法处理: {e}")
+    
+    # 方法4: 处理OLE格式的WPS文件（旧格式）
+    try:
+        import olefile
+        if olefile.isOleFile(filepath):
+            ole = olefile.OleFileIO(filepath)
+            
+            # 获取所有流的列表（处理嵌套列表格式）
+            streams = ole.listdir()
+            stream_names = [s[0] if isinstance(s, list) else s for s in streams]
+            print(f"OLE文件包含的流: {stream_names}")
+            
+            # 尝试从WordDocument流中提取文本
+            if 'WordDocument' in stream_names:
+                print("找到WordDocument流，正在提取文本...")
+                stream = ole.openstream('WordDocument')
+                data = stream.read()
+                print(f"WordDocument流大小: {len(data)} 字节")
+                
+                # 查找GBK编码的中文字符
+                text_parts = []
+                i = 0
+                while i < len(data) - 1:
+                    # GBK编码的中文字符第一个字节在0x81-0xFE范围内
+                    if 0x81 <= data[i] <= 0xFE:
+                        try:
+                            char = data[i:i+2].decode('gbk')
+                            if '\u4e00' <= char <= '\u9fff':  # 中文字符
+                                text_parts.append(char)
+                                i += 2
+                                continue
+                        except:
+                            pass
+                    # 英文和数字
+                    elif 32 <= data[i] <= 126:
+                        text_parts.append(chr(data[i]))
+                        i += 1
+                        continue
+                    i += 1
+                
+                text = ''.join(text_parts)
+                print(f"从OLE提取的原始文本长度: {len(text)}")
+                
+                # 清理文本
+                import re
+                # 移除多余的空白
+                text = re.sub(r'\s+', ' ', text)
+                # 移除孤立的单个字符
+                text = re.sub(r'(?<![\u4e00-\u9fff])[a-zA-Z](?![\u4e00-\u9fff])', '', text)
+                
+                # 检查提取的文本是否包含足够的中文字符（至少30%）
+                chinese_chars = len(re.findall(r'[\u4e00-\u9fff]', text))
+                total_chars = len(text.strip())
+                chinese_ratio = chinese_chars / total_chars if total_chars > 0 else 0
+                
+                print(f"中文字符数: {chinese_chars}, 总字符数: {total_chars}, 中文比例: {chinese_ratio:.2%}")
+                
+                if len(text.strip()) > 50 and chinese_ratio > 0.3:
+                    print(f"方法4成功: 从OLE格式提取文本，长度: {len(text)}")
+                    ole.close()
+                    return text
+                else:
+                    print(f"方法4: 提取的文本质量不佳（太短或中文比例过低），尝试其他方法")
+            else:
+                print("未找到WordDocument流")
+            
+            ole.close()
+        else:
+            print("不是OLE文件")
+    except Exception as e:
+        print(f"方法4失败: OLE处理失败: {e}")
+        import traceback
+        traceback.print_exc()
+    
+    # 方法5: 尝试使用antiword（外部工具）
+    try:
+        import subprocess
+        result = subprocess.run(['antiword', filepath], capture_output=True, text=True, timeout=10)
+        if result.stdout.strip() and len(result.stdout.strip()) > 50:
+            print(f"方法5成功: 使用antiword提取文本，长度: {len(result.stdout)}")
+            return result.stdout
+    except Exception as e:
+        print(f"方法5失败: antiword无法使用: {e}")
+    
+    # 方法6: 尝试使用catdoc（外部工具）
+    try:
+        import subprocess
+        result = subprocess.run(['catdoc', filepath], capture_output=True, text=True, timeout=10)
+        if result.stdout.strip() and len(result.stdout.strip()) > 50:
+            print(f"方法6成功: 使用catdoc提取文本，长度: {len(result.stdout)}")
+            return result.stdout
+    except Exception as e:
+        print(f"方法6失败: catdoc无法使用: {e}")
+    
+    # 方法7: 尝试使用pandoc（外部工具）
+    try:
+        import subprocess
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix='.txt', delete=False) as temp:
+            temp_name = temp.name
+        result = subprocess.run(['pandoc', filepath, '-o', temp_name], capture_output=True, text=True, timeout=10)
+        with open(temp_name, 'r', encoding='utf-8', errors='ignore') as f:
+            text = f.read()
+        os.unlink(temp_name)
+        if len(text.strip()) > 50:
+            print(f"方法7成功: 使用pandoc提取文本，长度: {len(text)}")
+            return text
+    except Exception as e:
+        print(f"方法7失败: pandoc无法使用: {e}")
+    
+    # 方法8: 使用Windows COM接口（仅Windows系统）
+    word_app = None
+    doc = None
+    try:
+        import win32com.client
+        import pythoncom
+        
+        print("方法8: 尝试使用Windows COM接口...")
+        
+        # 初始化COM
+        pythoncom.CoInitialize()
+        
+        # 尝试使用Word应用程序打开WPS文件
+        word_app = win32com.client.Dispatch("Word.Application")
+        word_app.Visible = False
+        word_app.DisplayAlerts = False
+        
+        print(f"Word应用程序已启动，正在打开文件: {filepath}")
+        
+        # 打开文档
+        doc = word_app.Documents.Open(filepath)
+        
+        # 提取文本
+        text = doc.Content.Text
+        
+        print(f"成功提取文本，长度: {len(text)}")
+        
+        # 关闭文档
+        try:
+            doc.Close(SaveChanges=False)
+        except:
+            pass
+        doc = None
+        
+        # 退出Word应用
+        try:
+            word_app.Quit()
+        except:
+            pass
+        word_app = None
+        
+        # 释放COM
+        try:
+            pythoncom.CoUninitialize()
+        except:
+            pass
+        
+        if len(text.strip()) > 50:
+            print(f"方法8成功: 使用Windows COM提取文本，长度: {len(text)}")
+            return text
+    except Exception as e:
+        print(f"方法8失败: Windows COM无法使用: {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        # 确保资源被释放
+        try:
+            if doc:
+                doc.Close(SaveChanges=False)
+        except:
+            pass
+        try:
+            if word_app:
+                word_app.Quit()
+        except:
+            pass
+        try:
+            pythoncom.CoUninitialize()
+        except:
+            pass
+    
+    # 所有方法都失败
+    print("所有方法都失败，无法提取WPS文件文本")
+    return f"WPS文件: {os.path.basename(filepath)}"
 
 def extract_text_from_txt(filepath):
     text = ''
@@ -308,105 +534,112 @@ def search():
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    if 'document' not in request.files:
-        return render_template('index.html', message='No file uploaded', message_type='error')
-    
-    file = request.files['document']
-    
-    if file.filename == '':
-        return render_template('upload.html', message='No file selected', message_type='error')
-    
-    if file and allowed_file(file.filename):
-        # 按文件类型创建子文件夹
-        if file.filename.endswith('.pdf'):
-            file_type_folder = 'pdf'
-        elif file.filename.endswith('.docx') or file.filename.endswith('.doc'):
-            file_type_folder = 'docx'
-        elif file.filename.endswith('.wps'):
-            file_type_folder = 'wps'
-        elif file.filename.endswith('.txt'):
-            file_type_folder = 'txt'
-        else:
-            file_type_folder = 'other'
-        upload_folder = os.path.join(app.config['UPLOAD_FOLDER'], file_type_folder)
+    try:
+        if 'document' not in request.files:
+            return render_template('upload.html', message='未上传文件', message_type='error')
         
-        # 确保子文件夹存在
-        if not os.path.exists(upload_folder):
-            os.makedirs(upload_folder)
+        file = request.files['document']
         
-        filename = f"{datetime.now().timestamp()}_{file.filename}"
-        filepath = os.path.join(upload_folder, filename)
-        file.save(filepath)
+        if file.filename == '':
+            return render_template('upload.html', message='未选择文件', message_type='error')
         
-        # 提取文件内容
-        content = ''
-        if file.filename.endswith('.pdf'):
-            content = extract_text_from_pdf(filepath)
-        elif file.filename.endswith('.docx'):
-            content = extract_text_from_docx(filepath)
-        elif file.filename.endswith('.doc'):
-            content = extract_text_from_doc(filepath)
-        elif file.filename.endswith('.wps'):
-            content = extract_text_from_wps(filepath)
-        elif file.filename.endswith('.txt'):
-            content = extract_text_from_txt(filepath)
-        
-        # 获取文件大小
-        file_size = os.path.getsize(filepath)
-        
-        # 获取表单字段
-        category_ids_str = request.form.get('category_id', '')
-        # 解析逗号分隔的分类ID
-        if category_ids_str:
-            category_ids = category_ids_str.split(',')
-        else:
-            # 如果没有选择分类，使用默认分类ID 1
-            category_ids = ['1']
-        issuing_unit = request.form.get('issuing_unit', '')
-        remark = request.form.get('remark', '')
-        
-        # 插入文档信息到数据库
-        # 使用SQLite
-        conn = sqlite3.connect('documents.db')
-        c = conn.cursor()
-        c.execute(
-            'INSERT INTO documents (file_name, file_path, file_size, issuing_unit, remark) VALUES (?, ?, ?, ?, ?)',
-            (file.filename, filepath, file_size, issuing_unit, remark)
-        )
-        document_id = c.lastrowid
-        
-        # 插入文档-分类关联
-        for category_id in category_ids:
+        if file and allowed_file(file.filename):
+            # 按文件类型创建子文件夹
+            if file.filename.endswith('.pdf'):
+                file_type_folder = 'pdf'
+            elif file.filename.endswith('.docx') or file.filename.endswith('.doc'):
+                file_type_folder = 'docx'
+            elif file.filename.endswith('.wps'):
+                file_type_folder = 'wps'
+            elif file.filename.endswith('.txt'):
+                file_type_folder = 'txt'
+            else:
+                file_type_folder = 'other'
+            upload_folder = os.path.join(app.config['UPLOAD_FOLDER'], file_type_folder)
+            
+            # 确保子文件夹存在
+            if not os.path.exists(upload_folder):
+                os.makedirs(upload_folder)
+            
+            filename = f"{datetime.now().timestamp()}_{file.filename}"
+            filepath = os.path.join(upload_folder, filename)
+            file.save(filepath)
+            
+            # 提取文件内容
+            content = ''
+            if file.filename.endswith('.pdf'):
+                content = extract_text_from_pdf(filepath)
+            elif file.filename.endswith('.docx'):
+                content = extract_text_from_docx(filepath)
+            elif file.filename.endswith('.doc'):
+                content = extract_text_from_doc(filepath)
+            elif file.filename.endswith('.wps'):
+                content = extract_text_from_wps(filepath)
+                print(f"WPS文件提取内容长度: {len(content)}")
+                print(f"WPS文件提取内容前100字符: {content[:100]}...")
+                print(f"WPS文件提取内容是否为路径: {'WPS文件:' in content}")
+            elif file.filename.endswith('.txt'):
+                content = extract_text_from_txt(filepath)
+            
+            # 获取文件大小
+            file_size = os.path.getsize(filepath)
+            
+            # 获取表单字段
+            category_ids_str = request.form.get('category_id', '')
+            # 解析逗号分隔的分类ID
+            if category_ids_str:
+                category_ids = category_ids_str.split(',')
+            else:
+                # 如果没有选择分类，使用默认分类ID 1
+                category_ids = ['1']
+            issuing_unit = request.form.get('issuing_unit', '')
+            remark = request.form.get('remark', '')
+            
+            # 插入文档信息到数据库
+            # 使用SQLite
+            conn = sqlite3.connect('documents.db')
+            c = conn.cursor()
             c.execute(
-                'INSERT INTO document_categories (document_id, category_id) VALUES (?, ?)',
-                (document_id, category_id)
+                'INSERT INTO documents (file_name, file_path, file_size, issuing_unit, remark) VALUES (?, ?, ?, ?, ?)',
+                (file.filename, filepath, file_size, issuing_unit, remark)
             )
-        
-        # 使用jieba分词后插入到全文检索表
-        if content:
-            try:
-                import jieba
-                # 使用jieba进行分词
-                seg_list = jieba.cut(content)
-                # 将分词结果用空格连接
-                seg_content = ' '.join(seg_list)
+            document_id = c.lastrowid
+            
+            # 插入文档-分类关联
+            for category_id in category_ids:
                 c.execute(
-                    'INSERT INTO file_content_fts (content, file_id) VALUES (?, ?)',
-                    (seg_content, document_id)
+                    'INSERT INTO document_categories (document_id, category_id) VALUES (?, ?)',
+                    (document_id, category_id)
                 )
-            except ImportError:
-                # 如果jieba未安装，直接使用原内容
-                c.execute(
-                    'INSERT INTO file_content_fts (content, file_id) VALUES (?, ?)',
-                    (content, document_id)
-                )
-        
-        conn.commit()
-        conn.close()
-        
-        return render_template('upload.html', message='File uploaded successfully', message_type='success')
-    else:
-        return render_template('upload.html', message='Invalid file type. Only .docx and .pdf are allowed.', message_type='error')
+            
+            # 使用jieba分词后插入到全文检索表
+            if content:
+                try:
+                    import jieba
+                    # 使用jieba进行分词
+                    seg_list = jieba.cut(content)
+                    # 将分词结果用空格连接
+                    seg_content = ' '.join(seg_list)
+                    c.execute(
+                        'INSERT INTO file_content_fts (content, file_id) VALUES (?, ?)',
+                        (seg_content, document_id)
+                    )
+                except ImportError:
+                    # 如果jieba未安装，直接使用原内容
+                    c.execute(
+                        'INSERT INTO file_content_fts (content, file_id) VALUES (?, ?)',
+                        (content, document_id)
+                    )
+            
+            conn.commit()
+            conn.close()
+            
+            return render_template('upload.html', message='文件上传成功', message_type='success')
+        else:
+            return render_template('upload.html', message='无效的文件类型。仅支持.docx、.doc、.pdf、.wps和.txt格式。', message_type='error')
+    except Exception as e:
+        print(f"上传文件失败: {e}")
+        return render_template('upload.html', message=f'上传文件失败: {str(e)}', message_type='error')
 
 @app.route('/search-results')
 def search_results():
@@ -1050,17 +1283,27 @@ def view_file(file_id):
             else:
                 upload_time_str = upload_time.strftime('%Y-%m-%d %H:%M:%S')
             
-            # 尝试在后端将Word文件转换为HTML
+            # 尝试在后端将Word和WPS文件转换为HTML
             word_html = None
-            if file_ext in ['doc', 'docx']:
+            if file_ext in ['doc', 'docx', 'wps']:
                 try:
                     import mammoth
                     with open(file_path, 'rb') as f:
                         result = mammoth.convert_to_html(f)
                         word_html = result.value
-                    print("Word文件转换成功")
+                    print(f"{file_ext.upper()}文件转换成功")
                 except Exception as e:
-                    print(f"Word文件转换失败: {e}")
+                    print(f"{file_ext.upper()}文件转换失败: {e}")
+                    # 尝试使用WPS文件的文本提取作为备用
+                    if file_ext == 'wps':
+                        try:
+                            text = extract_text_from_wps(file_path)
+                            if text:
+                                # 将文本转换为简单的HTML
+                                word_html = f"<pre>{text}</pre>"
+                                print("WPS文件文本提取成功并转换为HTML")
+                        except Exception as e2:
+                            print(f"WPS文件文本提取失败: {e2}")
             
             # 渲染模板
             return render_template('view-file.html', 
