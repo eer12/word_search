@@ -164,17 +164,17 @@
           {% if file_ext == 'pdf' %}
           <!-- PDF文件查看 -->
           <embed src="/get-file/{{ file_id }}" class="file-viewer" type="application/pdf">
-          {% elif file_ext in ['doc', 'docx'] %}
-          <!-- Word文件查看 -->
+          {% elif file_ext in ['doc', 'docx', 'wps'] %}
+          <!-- Word和WPS文件查看 -->
           {% if word_html %}
-          <!-- 后端转换的Word内容 -->
+          <!-- 后端转换的文件内容 -->
           <div class="word-content">
             {{ word_html|safe }}
           </div>
           {% else %}
           <!-- 下载文件选项 -->
           <div class="download-option">
-            <h3>Word文件查看</h3>
+            <h3>{% if file_ext == 'wps' %}WPS{% else %}Word{% endif %}文件查看</h3>
             <p>无法在线预览此文件，您可以下载后查看：</p>
             <a href="/get-file/{{ file_id }}" download="{{ file_name }}" class="download-btn">下载文件</a>
           </div>
