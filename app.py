@@ -884,9 +884,30 @@ def merged_search():
     c.execute(sql, params)
     files = c.fetchall()
     print(f"Found {len(files)} files")
+    
+    # 对于关键词搜索(MATCH)，需要在应用层检查是否包含完整的搜索词组
+    if match_keyword:
+        filtered_files = []
+        for file in files:
+            # 从file_content_fts表中获取文件内容
+            c.execute('SELECT content FROM file_content_fts WHERE file_id = ?', (file[0],))
+            content_result = c.fetchone()
+            if content_result and content_result[0]:
+                # 获取分词后的内容
+                seg_content = content_result[0]
+                # 将分词后的内容还原为原始内容（去除空格）
+                original_content = seg_content.replace(' ', '')
+                # 检查搜索词是否作为完整词组存在
+                if match_keyword in original_content:
+                    filtered_files.append(file)
+        files = filtered_files
+        print(f"Filtered files: {len(files)}")
+    
     conn.close()
     
-    # 计算总页数
+    # 计算总页数（如果是关键词搜索且有过滤，使用过滤后的数量）
+    if match_keyword:
+        total = len(files)
     total_pages = (total + per_page - 1) // per_page
     
     # 转换文件大小为友好格式
