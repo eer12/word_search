@@ -58,3 +58,4 @@ setup.exe
 launch.exe
 dist_backup/gui_install.exe
 dist_backup/launch_gui.exe
+dist_backup/stop_service.exe
