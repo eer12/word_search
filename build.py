@@ -33,12 +33,12 @@ def build_launch_gui():
     print("\n=== 打包 launch_gui.py ===")
     # 先清理之前的构建结果
     build_dir = os.path.join(PROJECT_ROOT, "build")
-    spec_file = os.path.join(PROJECT_ROOT, "launch_gui.spec")
+    spec_file = os.path.join(PROJECT_ROOT, "文件检索系统启动程序.spec")
     if os.path.exists(build_dir):
         print("清理build目录")
         shutil.rmtree(build_dir)
     if os.path.exists(spec_file):
-        print("删除launch_gui.spec文件")
+        print("删除文件检索系统启动程序.spec文件")
         os.remove(spec_file)
     
     # 检查当前目录
@@ -54,13 +54,14 @@ def build_launch_gui():
         f"{os.path.join(PROJECT_ROOT, 'analyze_wps.py')};.",
         f"{os.path.join(PROJECT_ROOT, 'query_db.py')};.",
         f"{os.path.join(PROJECT_ROOT, 'templates')};templates",
-        f"{os.path.join(PROJECT_ROOT, 'dist', '使用说明.txt')};使用说明.txt"
+        f"{os.path.join(PROJECT_ROOT, '使用说明.txt')};使用说明.txt",
+        f"{os.path.join(PROJECT_ROOT, '使用说明.md')};使用说明.md"
     ]
     
     cmd = [
         "pyinstaller",
         "--onefile",
-        "--name", "launch_gui",
+        "--name", "文件检索系统启动程序",
         "--windowed",
         "--collect-all", "tkinter",
         "--collect-all", "tcl",
@@ -103,8 +104,8 @@ def build_launch_gui():
         print("打包 launch_gui.py 失败")
         return False
     
-    # 检查launch_gui.exe是否生成
-    launch_gui_exe = os.path.join(PROJECT_ROOT, "dist", "launch_gui.exe")
+    # 检查文件检索系统启动程序.exe是否生成
+    launch_gui_exe = os.path.join(PROJECT_ROOT, "dist", "文件检索系统启动程序.exe")
     print(f"检查文件是否存在: {launch_gui_exe}")
     print(f"文件存在: {os.path.exists(launch_gui_exe)}")
     
@@ -132,19 +133,19 @@ def build_stop_service():
     print("\n=== 打包 stop_service.py ===")
     # 先清理之前的构建结果
     build_dir = os.path.join(PROJECT_ROOT, "build")
-    spec_file = os.path.join(PROJECT_ROOT, "stop_service.spec")
+    spec_file = os.path.join(PROJECT_ROOT, "关闭文件检索系统.spec")
     if os.path.exists(build_dir):
         print("清理build目录")
         shutil.rmtree(build_dir)
     if os.path.exists(spec_file):
-        print("删除stop_service.spec文件")
+        print("删除关闭文件检索系统.spec文件")
         os.remove(spec_file)
     
     # 构建命令
     cmd = [
         "pyinstaller",
         "--onefile",
-        "--name", "stop_service",
+        "--name", "关闭文件检索系统",
         "--console",
         "--hidden-import", "socket"
     ]
@@ -163,8 +164,8 @@ def build_stop_service():
         print("打包 stop_service.py 失败")
         return False
     
-    # 检查stop_service.exe是否生成
-    stop_service_exe = os.path.join(PROJECT_ROOT, "dist", "stop_service.exe")
+    # 检查关闭文件检索系统.exe是否生成
+    stop_service_exe = os.path.join(PROJECT_ROOT, "dist", "关闭文件检索系统.exe")
     print(f"检查文件是否存在: {stop_service_exe}")
     print(f"文件存在: {os.path.exists(stop_service_exe)}")
     
@@ -210,7 +211,9 @@ def build_gui_install():
         f"{os.path.join(PROJECT_ROOT, 'analyze_wps.py')};.",
         f"{os.path.join(PROJECT_ROOT, 'query_db.py')};.",
         f"{os.path.join(PROJECT_ROOT, 'templates')};templates",
-        f"{os.path.join(PROJECT_ROOT, 'requirements.txt')};."
+        f"{os.path.join(PROJECT_ROOT, 'requirements.txt')};.",
+        f"{os.path.join(PROJECT_ROOT, '使用说明.txt')};使用说明.txt",
+        f"{os.path.join(PROJECT_ROOT, '使用说明.md')};使用说明.md"
     ]
     
     # 构建命令
@@ -291,15 +294,15 @@ def build_gui_install():
         return False
 
 def copy_launch_gui_exe():
-    """复制launch_gui.exe到dist目录"""
-    print("\n=== 复制 launch_gui.exe ===")
+    """复制文件检索系统启动程序.exe到dist目录"""
+    print("\n=== 复制 文件检索系统启动程序.exe ===")
     # pyinstaller默认输出到dist目录
-    src = os.path.join(PROJECT_ROOT, "dist", "launch_gui.exe")
-    dst = os.path.join(DIST_DIR, "launch_gui.exe")
+    src = os.path.join(PROJECT_ROOT, "dist", "文件检索系统启动程序.exe")
+    dst = os.path.join(DIST_DIR, "文件检索系统启动程序.exe")
     if os.path.exists(src):
         try:
             shutil.copy2(src, dst)
-            print(f"成功复制 launch_gui.exe 到 {DIST_DIR}")
+            print(f"成功复制 文件检索系统启动程序.exe 到 {DIST_DIR}")
             return True
         except PermissionError as e:
             print(f"复制文件时出现权限错误: {e}")
@@ -311,15 +314,15 @@ def copy_launch_gui_exe():
                     os.remove(dst)
                 # 再次尝试复制
                 shutil.copy2(src, dst)
-                print(f"成功复制 launch_gui.exe 到 {DIST_DIR}")
+                print(f"成功复制 文件检索系统启动程序.exe 到 {DIST_DIR}")
                 return True
             except Exception as e:
                 print(f"复制失败: {e}")
-                # 即使复制失败，也继续执行，因为launch_gui.exe已经在dist目录中
-                print("警告: 复制失败，但launch_gui.exe已经在dist目录中")
+                # 即使复制失败，也继续执行，因为文件检索系统启动程序.exe已经在dist目录中
+                print("警告: 复制失败，但文件检索系统启动程序.exe已经在dist目录中")
                 return True
     else:
-        print("launch_gui.exe 不存在")
+        print("文件检索系统启动程序.exe 不存在")
         return False
 
 def verify_build():
@@ -327,8 +330,8 @@ def verify_build():
     print("\n=== 验证构建结果 ===")
     files_to_check = [
         "gui_install.exe",
-        "launch_gui.exe",
-        "stop_service.exe"
+        "文件检索系统启动程序.exe",
+        "关闭文件检索系统.exe"
     ]
     
     all_exist = True
@@ -376,14 +379,14 @@ def main():
     print("\n=== 打包完成 ===")
     print(f"您可以在 {DIST_DIR} 目录中找到以下文件:")
     print("- gui_install.exe: 图形化安装程序（使用SQLite数据库）")
-    print("- launch_gui.exe: 图形化启动器")
-    print("- stop_service.exe: 服务停止工具")
+    print("- 文件检索系统启动程序.exe: 图形化启动器")
+    print("- 关闭文件检索系统.exe: 服务停止工具")
     print("\n安装步骤:")
     print("1. 运行 gui_install.exe")
     print("2. 选择安装目录")
     print("3. 等待安装完成")
-    print("4. 在安装目录中运行 launch_gui.exe 启动应用")
-    print("5. 若需要停止服务，运行 stop_service.exe")
+    print("4. 在安装目录中运行 文件检索系统启动程序.exe 启动应用")
+    print("5. 若需要停止服务，运行 关闭文件检索系统.exe")
     
     return 0
 

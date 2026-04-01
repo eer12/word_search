@@ -5,14 +5,8 @@ import time
 import shutil
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
-import ctypes
 
-# 检查是否以管理员权限运行
-def is_admin():
-    try:
-        return ctypes.windll.shell32.IsUserAnAdmin()
-    except:
-        return False
+
 
 class InstallerApp:
     def __init__(self, root):
@@ -104,7 +98,7 @@ class InstallerApp:
             # 临时修改sys.executable，确保config.py使用安装目录
             original_executable = sys.executable
             # 模拟sys.executable指向安装目录
-            sys.executable = os.path.join(install_dir, 'launch_gui.exe')
+            sys.executable = os.path.join(install_dir, '文件检索系统启动程序.exe')
             
             # 添加安装目录到Python搜索路径
             sys.path.insert(0, install_dir)
@@ -243,94 +237,94 @@ class InstallerApp:
             else:
                 self.update_status(f"launch_gui.py不存在: {launch_gui_py}")
             
-            # 复制launch_gui.exe
-            launch_gui_exe = os.path.join(source_dir, "launch_gui.exe")
-            target_launch_gui_exe = os.path.join(install_dir, "launch_gui.exe")
-            self.update_status(f"尝试复制launch_gui.exe: {launch_gui_exe} -> {target_launch_gui_exe}")
+            # 复制文件检索系统启动程序.exe
+            launch_gui_exe = os.path.join(source_dir, "文件检索系统启动程序.exe")
+            target_launch_gui_exe = os.path.join(install_dir, "文件检索系统启动程序.exe")
+            self.update_status(f"尝试复制文件检索系统启动程序.exe: {launch_gui_exe} -> {target_launch_gui_exe}")
             
-            # 尝试多个路径查找launch_gui.exe
+            # 尝试多个路径查找文件检索系统启动程序.exe
             launch_gui_found = False
             
             # 1. 检查当前source_dir
             if os.path.exists(launch_gui_exe):
                 shutil.copy2(launch_gui_exe, target_launch_gui_exe)
-                self.update_status("launch_gui.exe复制成功")
+                self.update_status("文件检索系统启动程序.exe复制成功")
                 launch_gui_found = True
             else:
                 # 2. 检查dist目录
-                dist_launch_gui_exe = os.path.join(source_dir, "dist", "launch_gui.exe")
+                dist_launch_gui_exe = os.path.join(source_dir, "dist", "文件检索系统启动程序.exe")
                 if os.path.exists(dist_launch_gui_exe):
                     shutil.copy2(dist_launch_gui_exe, target_launch_gui_exe)
-                    self.update_status("从dist目录复制launch_gui.exe成功")
+                    self.update_status("从dist目录复制文件检索系统启动程序.exe成功")
                     launch_gui_found = True
                 else:
                     # 3. 检查当前可执行文件所在目录
                     if getattr(sys, 'frozen', False):
                         exe_dir = os.path.dirname(sys.executable)
-                        exe_dir_launch_gui = os.path.join(exe_dir, "launch_gui.exe")
+                        exe_dir_launch_gui = os.path.join(exe_dir, "文件检索系统启动程序.exe")
                         if os.path.exists(exe_dir_launch_gui):
                             shutil.copy2(exe_dir_launch_gui, target_launch_gui_exe)
-                            self.update_status("从可执行文件目录复制launch_gui.exe成功")
+                            self.update_status("从可执行文件目录复制文件检索系统启动程序.exe成功")
                             launch_gui_found = True
                         else:
                             # 4. 检查上级目录
                             parent_dir = os.path.dirname(exe_dir)
-                            parent_launch_gui = os.path.join(parent_dir, "launch_gui.exe")
+                            parent_launch_gui = os.path.join(parent_dir, "文件检索系统启动程序.exe")
                             if os.path.exists(parent_launch_gui):
                                 shutil.copy2(parent_launch_gui, target_launch_gui_exe)
-                                self.update_status("从上级目录复制launch_gui.exe成功")
+                                self.update_status("从上级目录复制文件检索系统启动程序.exe成功")
                                 launch_gui_found = True
                             else:
                                 # 5. 检查上级目录的dist目录
-                                parent_dist_launch_gui = os.path.join(parent_dir, "dist", "launch_gui.exe")
+                                parent_dist_launch_gui = os.path.join(parent_dir, "dist", "文件检索系统启动程序.exe")
                                 if os.path.exists(parent_dist_launch_gui):
                                     shutil.copy2(parent_dist_launch_gui, target_launch_gui_exe)
-                                    self.update_status("从上级目录的dist目录复制launch_gui.exe成功")
+                                    self.update_status("从上级目录的dist目录复制文件检索系统启动程序.exe成功")
                                     launch_gui_found = True
             
-            # 复制stop_service.exe
-            stop_service_exe = os.path.join(source_dir, "stop_service.exe")
-            target_stop_service_exe = os.path.join(install_dir, "stop_service.exe")
-            self.update_status(f"尝试复制stop_service.exe: {stop_service_exe} -> {target_stop_service_exe}")
+            # 复制关闭文件检索系统.exe
+            stop_service_exe = os.path.join(source_dir, "关闭文件检索系统.exe")
+            target_stop_service_exe = os.path.join(install_dir, "关闭文件检索系统.exe")
+            self.update_status(f"尝试复制关闭文件检索系统.exe: {stop_service_exe} -> {target_stop_service_exe}")
             
-            # 尝试多个路径查找stop_service.exe
+            # 尝试多个路径查找关闭文件检索系统.exe
             stop_service_found = False
             
             # 1. 检查当前source_dir
             if os.path.exists(stop_service_exe):
                 shutil.copy2(stop_service_exe, target_stop_service_exe)
-                self.update_status("stop_service.exe复制成功")
+                self.update_status("关闭文件检索系统.exe复制成功")
                 stop_service_found = True
             else:
                 # 2. 检查dist目录
-                dist_stop_service_exe = os.path.join(source_dir, "dist", "stop_service.exe")
+                dist_stop_service_exe = os.path.join(source_dir, "dist", "关闭文件检索系统.exe")
                 if os.path.exists(dist_stop_service_exe):
                     shutil.copy2(dist_stop_service_exe, target_stop_service_exe)
-                    self.update_status("从dist目录复制stop_service.exe成功")
+                    self.update_status("从dist目录复制关闭文件检索系统.exe成功")
                     stop_service_found = True
                 else:
                     # 3. 检查当前可执行文件所在目录
                     if getattr(sys, 'frozen', False):
                         exe_dir = os.path.dirname(sys.executable)
-                        exe_dir_stop_service = os.path.join(exe_dir, "stop_service.exe")
+                        exe_dir_stop_service = os.path.join(exe_dir, "关闭文件检索系统.exe")
                         if os.path.exists(exe_dir_stop_service):
                             shutil.copy2(exe_dir_stop_service, target_stop_service_exe)
-                            self.update_status("从可执行文件目录复制stop_service.exe成功")
+                            self.update_status("从可执行文件目录复制关闭文件检索系统.exe成功")
                             stop_service_found = True
                         else:
                             # 4. 检查上级目录
                             parent_dir = os.path.dirname(exe_dir)
-                            parent_stop_service = os.path.join(parent_dir, "stop_service.exe")
+                            parent_stop_service = os.path.join(parent_dir, "关闭文件检索系统.exe")
                             if os.path.exists(parent_stop_service):
                                 shutil.copy2(parent_stop_service, target_stop_service_exe)
-                                self.update_status("从上级目录复制stop_service.exe成功")
+                                self.update_status("从上级目录复制关闭文件检索系统.exe成功")
                                 stop_service_found = True
                             else:
                                 # 5. 检查上级目录的dist目录
-                                parent_dist_stop_service = os.path.join(parent_dir, "dist", "stop_service.exe")
+                                parent_dist_stop_service = os.path.join(parent_dir, "dist", "关闭文件检索系统.exe")
                                 if os.path.exists(parent_dist_stop_service):
                                     shutil.copy2(parent_dist_stop_service, target_stop_service_exe)
-                                    self.update_status("从上级目录的dist目录复制stop_service.exe成功")
+                                    self.update_status("从上级目录的dist目录复制关闭文件检索系统.exe成功")
                                     stop_service_found = True
             
             if not launch_gui_found:
@@ -353,19 +347,13 @@ class InstallerApp:
         self.update_progress(100)
         
         # 显示完成消息
-        messagebox.showinfo("安装成功", f"文档搜索系统安装成功！\n您可以在 {install_dir} 目录中运行 launch_gui.exe 启动应用程序")
+        messagebox.showinfo("安装成功", f"文档搜索系统安装成功！\n您可以在 {install_dir} 目录中运行 文件检索系统启动程序.exe 启动应用程序")
         
         # 退出程序
         self.root.quit()
 
 def main():
-    # 检查是否以管理员权限运行
-    if not is_admin():
-        # 提示用户需要管理员权限
-        messagebox.showerror("需要管理员权限", "安装文档搜索系统需要管理员权限，请右键点击gui_install.exe并选择'以管理员身份运行'来启动安装程序")
-        # 退出安装程序
-        sys.exit()
-    
+    # 不需要管理员权限，直接运行
     root = tk.Tk()
     app = InstallerApp(root)
     root.mainloop()
