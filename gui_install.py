@@ -288,6 +288,51 @@ class InstallerApp:
                                     self.update_status("从上级目录的dist目录复制launch_gui.exe成功")
                                     launch_gui_found = True
             
+            # 复制stop_service.exe
+            stop_service_exe = os.path.join(source_dir, "stop_service.exe")
+            target_stop_service_exe = os.path.join(install_dir, "stop_service.exe")
+            self.update_status(f"尝试复制stop_service.exe: {stop_service_exe} -> {target_stop_service_exe}")
+            
+            # 尝试多个路径查找stop_service.exe
+            stop_service_found = False
+            
+            # 1. 检查当前source_dir
+            if os.path.exists(stop_service_exe):
+                shutil.copy2(stop_service_exe, target_stop_service_exe)
+                self.update_status("stop_service.exe复制成功")
+                stop_service_found = True
+            else:
+                # 2. 检查dist目录
+                dist_stop_service_exe = os.path.join(source_dir, "dist", "stop_service.exe")
+                if os.path.exists(dist_stop_service_exe):
+                    shutil.copy2(dist_stop_service_exe, target_stop_service_exe)
+                    self.update_status("从dist目录复制stop_service.exe成功")
+                    stop_service_found = True
+                else:
+                    # 3. 检查当前可执行文件所在目录
+                    if getattr(sys, 'frozen', False):
+                        exe_dir = os.path.dirname(sys.executable)
+                        exe_dir_stop_service = os.path.join(exe_dir, "stop_service.exe")
+                        if os.path.exists(exe_dir_stop_service):
+                            shutil.copy2(exe_dir_stop_service, target_stop_service_exe)
+                            self.update_status("从可执行文件目录复制stop_service.exe成功")
+                            stop_service_found = True
+                        else:
+                            # 4. 检查上级目录
+                            parent_dir = os.path.dirname(exe_dir)
+                            parent_stop_service = os.path.join(parent_dir, "stop_service.exe")
+                            if os.path.exists(parent_stop_service):
+                                shutil.copy2(parent_stop_service, target_stop_service_exe)
+                                self.update_status("从上级目录复制stop_service.exe成功")
+                                stop_service_found = True
+                            else:
+                                # 5. 检查上级目录的dist目录
+                                parent_dist_stop_service = os.path.join(parent_dir, "dist", "stop_service.exe")
+                                if os.path.exists(parent_dist_stop_service):
+                                    shutil.copy2(parent_dist_stop_service, target_stop_service_exe)
+                                    self.update_status("从上级目录的dist目录复制stop_service.exe成功")
+                                    stop_service_found = True
+            
             if not launch_gui_found:
                 self.update_status(f"launch_gui.exe不存在，将创建一个临时启动脚本")
                 # 创建一个临时启动脚本

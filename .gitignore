@@ -25,6 +25,7 @@ tmp/
 
 # 数据库文件
 documents.db
+document_search.db
 
 # 编辑器配置文件
 .vscode/
@@ -57,4 +58,3 @@ setup.exe
 launch.exe
 dist_backup/gui_install.exe
 dist_backup/launch_gui.exe
-document_search.db

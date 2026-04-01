@@ -112,33 +112,88 @@ class LaunchGUI:
                 # 我们需要找到真实的Python解释器，或者使用不同的方式运行脚本
                 if getattr(sys, 'frozen', False):
                     # 可执行文件环境
-                    self.log("检测到可执行文件环境，使用runpy模块运行脚本")
-                    # 使用runpy模块在当前进程中运行脚本
-                    # 但这会阻塞当前线程，所以我们需要在新线程中运行
-                    def run_script():
-                        try:
-                            import runpy
-                            import os
-                            # 保存原始工作目录
-                            original_cwd = os.getcwd()
-                            # 设置工作目录为APP_DIR
-                            os.chdir(APP_DIR)
-                            self.log(f"使用runpy运行脚本: {production_script}")
-                            self.log(f"工作目录: {os.getcwd()}")
-                            # 运行脚本
-                            runpy.run_path(production_script, run_name='__main__')
-                            # 恢复原始工作目录
-                            os.chdir(original_cwd)
-                        except Exception as e:
-                            self.log(f"运行脚本失败: {e}")
-                            import traceback
-                            self.log(traceback.format_exc())
-                    # 启动新线程运行脚本
-                    threading.Thread(target=run_script, daemon=True).start()
-                    # 由于我们在当前进程中运行脚本，没有单独的进程
-                    # 所以我们设置app_process为None，使用端口检查来判断服务是否启动
-                    self.app_process = None
-                    self.log("脚本已在后台线程中启动")
+                    self.log("检测到可执行文件环境，使用独立进程运行脚本")
+                    # 使用subprocess创建独立进程运行脚本
+                    try:
+                        # 查找Python解释器
+                        # 在打包环境中，sys.executable是launch_gui.exe，不是Python解释器
+                        # 我们需要找到真实的Python解释器，或者直接运行run_production.py
+                        # 尝试使用python.exe
+                        import shutil
+                        python_exe = shutil.which('python.exe')
+                        if not python_exe:
+                            # 尝试使用python3.exe
+                            python_exe = shutil.which('python3.exe')
+                        
+                        if python_exe:
+                            # 构建启动命令
+                            startup_cmd = [python_exe, production_script]
+                            self.log(f"启动命令: {' '.join(startup_cmd)}")
+                            self.log(f"工作目录: {APP_DIR}")
+                            # 在后台启动应用，不捕获输出，不显示命令行窗口
+                            self.app_process = subprocess.Popen(
+                                startup_cmd,
+                                stdout=subprocess.DEVNULL,
+                                stderr=subprocess.DEVNULL,
+                                cwd=APP_DIR,
+                                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
+                            )
+                            self.log(f"应用进程已启动，PID: {self.app_process.pid}")
+                        else:
+                            # 回退到线程方式
+                            self.log("未找到Python解释器，回退到线程方式运行脚本")
+                            def run_script():
+                                try:
+                                    import runpy
+                                    import os
+                                    # 保存原始工作目录
+                                    original_cwd = os.getcwd()
+                                    # 设置工作目录为APP_DIR
+                                    os.chdir(APP_DIR)
+                                    self.log(f"使用runpy运行脚本: {production_script}")
+                                    self.log(f"工作目录: {os.getcwd()}")
+                                    # 运行脚本
+                                    runpy.run_path(production_script, run_name='__main__')
+                                    # 恢复原始工作目录
+                                    os.chdir(original_cwd)
+                                except Exception as e:
+                                    self.log(f"运行脚本失败: {e}")
+                                    import traceback
+                                    self.log(traceback.format_exc())
+                            # 启动新线程运行脚本
+                            threading.Thread(target=run_script, daemon=True).start()
+                            # 由于我们在当前进程中运行脚本，没有单独的进程
+                            # 所以我们设置app_process为None，使用端口检查来判断服务是否启动
+                            self.app_process = None
+                            self.log("脚本已在后台线程中启动")
+                    except Exception as e:
+                        self.log(f"创建独立进程失败: {e}")
+                        # 回退到线程方式
+                        def run_script():
+                            try:
+                                import runpy
+                                import os
+                                # 保存原始工作目录
+                                original_cwd = os.getcwd()
+                                # 设置工作目录为APP_DIR
+                                os.chdir(APP_DIR)
+                                self.log(f"使用runpy运行脚本: {production_script}")
+                                self.log(f"工作目录: {os.getcwd()}")
+                                # 运行脚本
+                                runpy.run_path(production_script, run_name='__main__')
+                                # 恢复原始工作目录
+                                os.chdir(original_cwd)
+                            except Exception as e:
+                                self.log(f"运行脚本失败: {e}")
+                                import traceback
+                                self.log(traceback.format_exc())
+                        # 启动新线程运行脚本
+                        threading.Thread(target=run_script, daemon=True).start()
+                        # 由于我们在当前进程中运行脚本，没有单独的进程
+                        # 所以我们设置app_process为None，使用端口检查来判断服务是否启动
+                        self.app_process = None
+                        self.log("脚本已在后台线程中启动")
+
                 else:
                     # 开发环境
                     python_exe = sys.executable
@@ -422,10 +477,9 @@ class LaunchGUI:
     
     def exit_app(self):
         """退出应用"""
-        if self.running:
-            self.stop_services()
-            # 等待服务停止
-            time.sleep(2)
+        # 直接退出应用，不停止服务
+        # 在打包环境中，服务在后台独立进程中运行，不会随启动器退出而停止
+        # 即使在开发环境中，服务在后台线程中运行，使用了daemon=True，主线程退出时后台线程会自动退出
         self.root.quit()
 
 if __name__ == "__main__":

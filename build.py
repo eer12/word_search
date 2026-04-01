@@ -124,6 +124,66 @@ def build_launch_gui():
         print(f"打包 launch_gui.py 失败，文件 {launch_gui_exe} 不存在")
         return False
 
+def build_stop_service():
+    """打包stop_service.py"""
+    print("\n=== 打包 stop_service.py ===")
+    # 先清理之前的构建结果
+    build_dir = os.path.join(PROJECT_ROOT, "build")
+    spec_file = os.path.join(PROJECT_ROOT, "stop_service.spec")
+    if os.path.exists(build_dir):
+        print("清理build目录")
+        shutil.rmtree(build_dir)
+    if os.path.exists(spec_file):
+        print("删除stop_service.spec文件")
+        os.remove(spec_file)
+    
+    # 构建命令
+    cmd = [
+        "pyinstaller",
+        "--onefile",
+        "--name", "stop_service",
+        "--console",
+        "--hidden-import", "socket"
+    ]
+    
+    # 添加主脚本
+    cmd.append(os.path.join(PROJECT_ROOT, "stop_service.py"))
+    
+    # 检查当前目录
+    print(f"当前工作目录: {os.getcwd()}")
+    print(f"项目根目录: {PROJECT_ROOT}")
+    print(f"构建命令: {' '.join(cmd)}")
+    
+    # 在项目根目录执行命令
+    result = run_command(cmd, cwd=PROJECT_ROOT)
+    if result.returncode != 0:
+        print("打包 stop_service.py 失败")
+        return False
+    
+    # 检查stop_service.exe是否生成
+    stop_service_exe = os.path.join(PROJECT_ROOT, "dist", "stop_service.exe")
+    print(f"检查文件是否存在: {stop_service_exe}")
+    print(f"文件存在: {os.path.exists(stop_service_exe)}")
+    
+    # 列出dist目录内容
+    dist_dir = os.path.join(PROJECT_ROOT, "dist")
+    print("\n=== dist目录内容 ===")
+    if os.path.exists(dist_dir):
+        for file in os.listdir(dist_dir):
+            file_path = os.path.join(dist_dir, file)
+            size = os.path.getsize(file_path) / (1024 * 1024)  # MB
+            print(f"- {file} (大小: {size:.2f} MB)")
+    else:
+        print("dist目录不存在")
+    
+    if os.path.exists(stop_service_exe):
+        size = os.path.getsize(stop_service_exe) / (1024 * 1024)  # MB
+        print(f"打包 stop_service.py 成功，生成文件: {stop_service_exe} (大小: {size:.2f} MB)")
+        return True
+    else:
+        print(f"打包 stop_service.py 失败，文件 {stop_service_exe} 不存在")
+        return False
+
 def build_gui_install():
     """打包gui_install.py，包含所有必要的文件"""
     print("\n=== 打包 gui_install.py ===")
@@ -262,7 +322,8 @@ def verify_build():
     print("\n=== 验证构建结果 ===")
     files_to_check = [
         "gui_install.exe",
-        "launch_gui.exe"
+        "launch_gui.exe",
+        "stop_service.exe"
     ]
     
     all_exist = True
@@ -299,6 +360,10 @@ def main():
     if not build_launch_gui():
         return 1
     
+    # 构建stop_service
+    if not build_stop_service():
+        return 1
+    
     # 验证构建结果
     if not verify_build():
         return 1
@@ -307,11 +372,13 @@ def main():
     print(f"您可以在 {DIST_DIR} 目录中找到以下文件:")
     print("- gui_install.exe: 图形化安装程序（使用SQLite数据库）")
     print("- launch_gui.exe: 图形化启动器")
+    print("- stop_service.exe: 服务停止工具")
     print("\n安装步骤:")
     print("1. 运行 gui_install.exe")
     print("2. 选择安装目录")
     print("3. 等待安装完成")
     print("4. 在安装目录中运行 launch_gui.exe 启动应用")
+    print("5. 若需要停止服务，运行 stop_service.exe")
     
     return 0
 
