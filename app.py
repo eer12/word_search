@@ -1085,6 +1085,23 @@ def get_document_categories(file_id):
     
     return jsonify(result)
 
+@app.route('/api/categories')
+@login_required
+def api_categories():
+    """获取所有分类的API"""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('SELECT id, name FROM categories ORDER BY id')
+    categories = c.fetchall()
+    conn.close()
+    
+    # 转换为字典列表
+    result = []
+    for category in categories:
+        result.append({'id': category[0], 'name': category[1]})
+    
+    return jsonify(result)
+
 @app.route('/update-document-categories', methods=['POST'])
 @login_required
 def update_document_categories():

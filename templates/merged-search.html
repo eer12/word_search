@@ -399,22 +399,9 @@
       modalFileName.textContent = `文件：${fileName}`;
       
       // 获取所有分类
-      fetch('/categories')
-        .then(response => response.text())
-        .then(html => {
-          // 从HTML中提取分类列表
-          const parser = new DOMParser();
-          const doc = parser.parseFromString(html, 'text/html');
-          const categoryItems = doc.querySelectorAll('.category-item');
-          const categories = [];
-          
-          categoryItems.forEach(item => {
-            const name = item.querySelector('.category-info strong').textContent;
-            // 从编辑链接中提取ID
-            const editLink = item.querySelector('.actions a:first-child').href;
-            const id = editLink.split('/').pop();
-            categories.push({ id, name });
-          });
+      fetch('/api/categories')
+        .then(response => response.json())
+        .then(categories => {
           
           // 清空现有选项
           categoryOptions.innerHTML = '';
@@ -423,12 +410,12 @@
           fetch(`/get-document-categories/${fileId}`)
             .then(response => response.json())
             .then(currentCategories => {
-              const currentCategoryIds = currentCategories.map(cat => cat.id);
+              const currentCategoryIds = currentCategories.map(cat => cat.id.toString());
               
               // 添加分类选项
               categories.forEach(category => {
                 const option = document.createElement('div');
-                option.className = `category-option ${currentCategoryIds.includes(category.id) ? 'selected' : ''}`;
+                option.className = `category-option ${currentCategoryIds.includes(category.id.toString()) ? 'selected' : ''}`;
                 option.dataset.id = category.id;
                 option.textContent = category.name;
                 option.addEventListener('click', function() {
