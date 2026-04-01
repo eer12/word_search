@@ -10,7 +10,14 @@ import threading
 # 获取应用程序所在目录
 if getattr(sys, 'frozen', False):
     # 打包环境
+    # 对于PyInstaller打包的应用，sys.executable指向可执行文件
+    # 但在某些情况下，它可能指向临时目录中的文件
+    # 所以我们需要确保获取的是实际的安装目录
     CURRENT_DIR = os.path.dirname(sys.executable)
+    # 检查是否在临时目录中
+    if r'AppData\Local\Temp' in CURRENT_DIR:
+        # 如果在临时目录中，使用当前工作目录
+        CURRENT_DIR = os.getcwd()
 else:
     # 开发环境
     CURRENT_DIR = os.getcwd()
@@ -111,9 +118,17 @@ class LaunchGUI:
                     def run_script():
                         try:
                             import runpy
+                            import os
+                            # 保存原始工作目录
+                            original_cwd = os.getcwd()
+                            # 设置工作目录为APP_DIR
+                            os.chdir(APP_DIR)
                             self.log(f"使用runpy运行脚本: {production_script}")
+                            self.log(f"工作目录: {os.getcwd()}")
                             # 运行脚本
                             runpy.run_path(production_script, run_name='__main__')
+                            # 恢复原始工作目录
+                            os.chdir(original_cwd)
                         except Exception as e:
                             self.log(f"运行脚本失败: {e}")
                             import traceback

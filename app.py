@@ -19,26 +19,28 @@ except ImportError:
     MYSQL_AVAILABLE = False
 
 app = Flask(__name__)
+# 创建Config实例
+config_instance = Config()
 # 加载配置
-app.config['UPLOAD_FOLDER'] = Config.UPLOAD_FOLDER
+app.config['UPLOAD_FOLDER'] = config_instance.UPLOAD_FOLDER
 app.config['ALLOWED_EXTENSIONS'] = Config.ALLOWED_EXTENSIONS
 
-# 确保上传目录存在
-if not os.path.exists(app.config['UPLOAD_FOLDER']):
-    os.makedirs(app.config['UPLOAD_FOLDER'])
+# 确保目录存在
+Config.ensure_directories()
 
 # 数据库类型
 DB_TYPE = 'sqlite'  # 默认使用SQLite
 
-# MySQL数据库配置
-DB_CONFIG = Config.DB_CONFIG
+# SQLite数据库配置
+DB_PATH = config_instance.DB_PATH
 
 # 初始化数据库
 def init_db():
+    # 延迟初始化数据库，在安装过程中会手动调用
     global DB_TYPE
     
     # 强制使用SQLite数据库
-    conn = sqlite3.connect('documents.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     # 创建分类表
     c.execute('''
@@ -106,7 +108,8 @@ def init_db():
     print("使用SQLite数据库")
     return True
 
-init_db()
+# 延迟初始化数据库，在安装过程中会手动调用
+# init_db()
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -281,7 +284,7 @@ def index():
 def upload_page():
     # 获取分类列表
     categories_list = []
-    conn = sqlite3.connect('documents.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute('SELECT id, name FROM categories ORDER BY id DESC')
     categories_list = c.fetchall()
@@ -292,7 +295,7 @@ def upload_page():
 def search():
     # 获取分类列表
     categories = []
-    conn = sqlite3.connect('documents.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute('SELECT id, name FROM categories')
     categories = c.fetchall()
@@ -364,7 +367,7 @@ def upload_file():
             
             # 插入文档信息到数据库
             # 使用SQLite
-            conn = sqlite3.connect('documents.db')
+            conn = sqlite3.connect(DB_PATH)
             c = conn.cursor()
             c.execute(
                 'INSERT INTO documents (file_name, file_path, file_size, issuing_unit, remark) VALUES (?, ?, ?, ?, ?)',
@@ -420,7 +423,7 @@ def search_results():
     
     # 获取分类映射
     category_map = {}
-    conn = sqlite3.connect('documents.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute('SELECT id, name FROM categories')
     for row in c.fetchall():
@@ -428,7 +431,7 @@ def search_results():
     conn.close()
     
     # 使用SQLite进行搜索，支持中文
-    conn = sqlite3.connect('documents.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     
     # 构建查询和参数
@@ -508,7 +511,7 @@ def search_results():
     results_list = []
     for result in results:
         # 获取文档的分类
-        conn = sqlite3.connect('documents.db')
+        conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         c.execute('SELECT category_id FROM document_categories WHERE document_id = ?', (result[0],))
         category_ids = [row[0] for row in c.fetchall()]
@@ -548,7 +551,7 @@ def categories():
         params.append(f'%{search}%')
     
     # 获取总记录数
-    conn = sqlite3.connect('documents.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     count_sql = f'SELECT COUNT(*) FROM categories {where_clause}'
     c.execute(count_sql, params)
@@ -571,7 +574,7 @@ def add_category():
         name = request.form['name']
         description = request.form['description']
         
-        conn = sqlite3.connect('documents.db')
+        conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         c.execute('INSERT INTO categories (name, description) VALUES (?, ?)', (name, description))
         conn.commit()
@@ -587,7 +590,7 @@ def edit_category(id):
         name = request.form['name']
         description = request.form['description']
         
-        conn = sqlite3.connect('documents.db')
+        conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         c.execute('UPDATE categories SET name = ?, description = ? WHERE id = ?', (name, description, id))
         conn.commit()
@@ -595,7 +598,7 @@ def edit_category(id):
         
         return redirect(url_for('categories'))
     
-    conn = sqlite3.connect('documents.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute('SELECT * FROM categories WHERE id = ?', (id,))
     category = c.fetchone()
@@ -605,7 +608,7 @@ def edit_category(id):
 
 @app.route('/categories/delete/<int:id>')
 def delete_category(id):
-    conn = sqlite3.connect('documents.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute('DELETE FROM categories WHERE id = ?', (id,))
     conn.commit()
@@ -622,7 +625,7 @@ def delete_file(id):
     category_id = request.args.get('category', '')
     
     # 真数据库删除，同时删除相关的关联数据
-    conn = sqlite3.connect('documents.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     
     # 获取文件路径，用于删除物理文件
@@ -677,7 +680,7 @@ def file_list():
     offset = (page - 1) * per_page
     
     # 获取总记录数
-    conn = sqlite3.connect('documents.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute('SELECT COUNT(*) FROM documents WHERE is_delete = 0')
     total = c.fetchone()[0]
@@ -760,14 +763,14 @@ def merged_search():
     
     # 获取分类列表
     categories = []
-    conn = sqlite3.connect('documents.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute('SELECT id, name FROM categories')
     categories = c.fetchall()
     conn.close()
     
     # 构建查询语句
-    conn = sqlite3.connect('documents.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     
     # 构建WHERE子句
@@ -875,24 +878,17 @@ def merged_search():
         
         # 获取文档的所有分类
         file_categories = []
-        if DB_TYPE == 'mysql':
-            conn = mysql.connector.connect(**DB_CONFIG)
-            c = conn.cursor()
-            c.execute('SELECT c.id, c.name FROM document_categories dc JOIN categories c ON dc.category_id = c.id WHERE dc.document_id = %s', (file[0],))
-            file_categories = c.fetchall()
-            conn.close()
-        else:
-            conn = sqlite3.connect('documents.db')
-            c = conn.cursor()
-            c.execute('SELECT c.id, c.name FROM document_categories dc JOIN categories c ON dc.category_id = c.id WHERE dc.document_id = ?', (file[0],))
-            file_categories = c.fetchall()
-            conn.close()
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute('SELECT c.id, c.name FROM document_categories dc JOIN categories c ON dc.category_id = c.id WHERE dc.document_id = ?', (file[0],))
+        file_categories = c.fetchall()
+        conn.close()
         
         # 提取关键词上下文
         contexts = []
         if search_term:
             # 从file_content_fts表中获取文件内容
-            conn = sqlite3.connect('documents.db')
+            conn = sqlite3.connect(DB_PATH)
             c = conn.cursor()
             c.execute('SELECT content FROM file_content_fts WHERE file_id = ?', (file[0],))
             content_result = c.fetchone()
@@ -945,7 +941,7 @@ def merged_search():
 
 @app.route('/get-document-categories/<int:file_id>')
 def get_document_categories(file_id):
-    conn = sqlite3.connect('documents.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute('SELECT c.id, c.name FROM document_categories dc JOIN categories c ON dc.category_id = c.id WHERE dc.document_id = ?', (file_id,))
     categories = c.fetchall()
@@ -964,7 +960,7 @@ def update_document_categories():
     file_id = data.get('file_id')
     category_ids = data.get('category_ids', [])
     
-    conn = sqlite3.connect('documents.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     
     try:
@@ -986,7 +982,7 @@ def update_document_categories():
 @app.route('/open-file-location/<int:file_id>')
 def open_file_location(file_id):
     # 根据文件ID获取文件路径
-    conn = sqlite3.connect('documents.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute('SELECT file_path FROM documents WHERE id = ?', (file_id,))
     result = c.fetchone()
@@ -1013,7 +1009,7 @@ def open_file_location(file_id):
 @app.route('/download-file/<int:file_id>')
 def download_file(file_id):
     # 根据文件ID获取文件路径和文件名
-    conn = sqlite3.connect('documents.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute('SELECT file_path, file_name FROM documents WHERE id = ?', (file_id,))
     result = c.fetchone()
@@ -1039,7 +1035,7 @@ def download_file(file_id):
 @app.route('/view-file/<int:file_id>')
 def view_file(file_id):
     # 根据文件ID获取文件路径、文件名和其他信息
-    conn = sqlite3.connect('documents.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute('SELECT file_path, file_name, file_size, upload_time FROM documents WHERE id = ?', (file_id,))
     result = c.fetchone()
@@ -1118,7 +1114,7 @@ def view_file(file_id):
 @app.route('/get-file/<int:file_id>')
 def get_file(file_id):
     # 根据文件ID获取文件路径和文件名
-    conn = sqlite3.connect('documents.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute('SELECT file_path, file_name FROM documents WHERE id = ?', (file_id,))
     result = c.fetchone()
@@ -1177,34 +1173,14 @@ def settings():
         app.config['UPLOAD_FOLDER'] = upload_folder
         print('更新后的上传目录:', app.config['UPLOAD_FOLDER'])
         
-        # 更新配置文件
-        config_path = os.path.join(os.path.dirname(__file__), 'config.py')
-        print('配置文件路径:', config_path)
-        
-        with open(config_path, 'r', encoding=Config.FILE_ENCODING) as f:
-            config_content = f.read()
-        
-        # 替换UPLOAD_FOLDER的值（使用正则表达式匹配任意格式的UPLOAD_FOLDER设置）
-        import re
-        # 将路径中的反斜杠替换为双反斜杠，避免在字符串中被解释为转义字符
-        escaped_path = upload_folder.replace('\\', '\\\\')
-        new_config_content = re.sub(
-            r"UPLOAD_FOLDER = .*",
-            f"UPLOAD_FOLDER = r'{escaped_path}'",
-            config_content
-        )
-        
-        with open(config_path, 'w', encoding=Config.FILE_ENCODING) as f:
-            f.write(new_config_content)
-        print('配置文件更新成功')
-        
-        # 更新Config类的UPLOAD_FOLDER属性
-        Config.UPLOAD_FOLDER = upload_folder
-        print('Config.UPLOAD_FOLDER更新成功:', Config.UPLOAD_FOLDER)
+        # 保存设置
+        print('UPLOAD_FOLDER更新成功:', upload_folder)
         
         return render_template('settings.html', upload_folder=upload_folder, message='设置保存成功', message_type='success')
     
     return render_template('settings.html', upload_folder=app.config['UPLOAD_FOLDER'])
 
 if __name__ == '__main__':
+    # 初始化数据库
+    init_db()
     app.run(debug=True, port=3000)

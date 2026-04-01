@@ -98,19 +98,45 @@ class InstallerApp:
             import sys
             import os
             
-            # 添加当前目录到Python搜索路径
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            sys.path.insert(0, current_dir)
+            # 获取安装目录
+            install_dir = self.dir_var.get()
+            
+            # 临时修改sys.executable，确保config.py使用安装目录
+            original_executable = sys.executable
+            # 模拟sys.executable指向安装目录
+            sys.executable = os.path.join(install_dir, 'launch_gui.exe')
+            
+            # 添加安装目录到Python搜索路径
+            sys.path.insert(0, install_dir)
+            
+            # 临时修改环境变量，确保config.py使用安装目录
+            import config
+            # 保存原始BASE_DIR
+            original_base_dir = config.BASE_DIR
+            # 修改BASE_DIR为安装目录
+            config.BASE_DIR = install_dir
+            # 更新DB_PATH为安装目录
+            config.Config.DB_PATH = os.path.join(install_dir, 'document_search.db')
             
             # 导入app模块
             import app
+            # 重新初始化app模块的DB_PATH
+            app.DB_PATH = config.Config.DB_PATH
             # 调用初始化函数
             app.init_db()
+            
+            # 恢复原始BASE_DIR
+            config.BASE_DIR = original_base_dir
+            # 恢复原始sys.executable
+            sys.executable = original_executable
+            
             self.update_status("数据库初始化成功")
             self.update_progress(80)
             return True
         except Exception as e:
             self.update_status(f"数据库初始化失败: {e}")
+            import traceback
+            self.update_status(f"错误详情: {traceback.format_exc()}")
             return False
     
     def copy_mysql_to_install_dir(self, install_dir):
