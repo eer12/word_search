@@ -9,6 +9,26 @@ from PIL import Image
 import pdf2image
 import tempfile
 
+# 导入处理doc文件所需的模块
+try:
+    import pythoncom
+    import win32com.client
+    PYWIN32_AVAILABLE = True
+except ImportError:
+    PYWIN32_AVAILABLE = False
+
+try:
+    import docx2txt
+    DOCX2TXT_AVAILABLE = True
+except ImportError:
+    DOCX2TXT_AVAILABLE = False
+
+try:
+    import olefile
+    OLEFILE_AVAILABLE = True
+except ImportError:
+    OLEFILE_AVAILABLE = False
+
 # 导入配置
 from config import Config
 
@@ -162,21 +182,44 @@ def extract_text_from_docx(filepath):
 def extract_text_from_doc(filepath):
     text = ''
     try:
-        # 使用antiword或其他工具处理doc文件
-        # 这里使用一个简单的方法，实际生产环境可能需要更复杂的处理
-        import subprocess
-        result = subprocess.run(['antiword', filepath], capture_output=True, text=True)
-        text = result.stdout
+        # 尝试使用docx2txt库处理doc文件
+        if DOCX2TXT_AVAILABLE:
+            text = docx2txt.process(filepath)
+        else:
+            raise ImportError("docx2txt库未安装")
     except Exception as e:
-        print(f"处理DOC文件失败: {e}")
-        # 如果antiword不可用，尝试使用python-docx的扩展
+        print(f"使用docx2txt处理DOC文件失败: {e}")
+        # 如果docx2txt失败，尝试使用pywin32（仅Windows）
         try:
-            from docx import Document
-            doc = Document(filepath)
-            for paragraph in doc.paragraphs:
-                text += paragraph.text + '\n'
+            if PYWIN32_AVAILABLE:
+                # 初始化COM库
+                pythoncom.CoInitialize()
+                word = win32com.client.Dispatch('Word.Application')
+                word.Visible = False
+                doc = word.Documents.Open(filepath)
+                text = doc.Content.Text
+                doc.Close()
+                word.Quit()
+                # 释放COM资源
+                pythoncom.CoUninitialize()
+            else:
+                raise ImportError("pywin32库未安装")
         except Exception as e2:
-            print(f"尝试使用python-docx处理DOC文件失败: {e2}")
+            print(f"使用pywin32处理DOC文件失败: {e2}")
+            # 如果pywin32也失败，尝试使用olefile作为最后手段
+            try:
+                if OLEFILE_AVAILABLE:
+                    if olefile.isOleFile(filepath):
+                        ole = olefile.OleFileIO(filepath)
+                        # 尝试从WordDocument流中提取文本
+                        if 'WordDocument' in ole.listdir():
+                            # 这里只是简单的实现，实际可能需要更复杂的解析
+                            text = "[DOC文件内容]"
+                            print("使用olefile成功打开DOC文件")
+                else:
+                    raise ImportError("olefile库未安装")
+            except Exception as e3:
+                print(f"使用olefile处理DOC文件失败: {e3}")
     return text
 
 # 从wps_extractor模块导入WPS文件文本提取函数

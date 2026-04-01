@@ -1,7 +1,9 @@
 import sqlite3
+import os
 
 # 连接数据库
-conn = sqlite3.connect('documents.db')
+db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'document_search.db')
+conn = sqlite3.connect(db_path)
 c = conn.cursor()
 
 # 查看file_content_fts表的结构

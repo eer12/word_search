@@ -51,10 +51,10 @@ Thumbs.db
 ehthumbs.db
 
 # MySQL相关
-mysql/
+mysql/**
 
 # 安装程序生成的文件
 setup.exe
 launch.exe
-dist_backup/
-backup/docx/1775029663.908591_【省调研】金融岛调研汇报8.12.doc
+dist_backup/**
+backup/**
