@@ -86,7 +86,9 @@ def build_launch_gui():
         "--hidden-import", "olefile",
         "--hidden-import", "docx2txt",
         "--hidden-import", "win32api",
-        "--hidden-import", "win32con"
+        "--hidden-import", "win32con",
+        "--hidden-import", "pythoncom",
+        "--hidden-import", "win32com.client"
     ]
     
     # 添加数据文件
@@ -241,7 +243,9 @@ def build_gui_install():
         "--hidden-import", "olefile",
         "--hidden-import", "docx2txt",
         "--hidden-import", "win32api",
-        "--hidden-import", "win32con"
+        "--hidden-import", "win32con",
+        "--hidden-import", "pythoncom",
+        "--hidden-import", "win32com.client"
     ]
     
     # 添加数据文件
