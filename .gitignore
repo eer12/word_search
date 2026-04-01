@@ -56,6 +56,5 @@ mysql/
 # 安装程序生成的文件
 setup.exe
 launch.exe
-dist_backup/gui_install.exe
-dist_backup/launch_gui.exe
-dist_backup/stop_service.exe
+dist_backup/
+backup/docx/1775029663.908591_【省调研】金融岛调研汇报8.12.doc

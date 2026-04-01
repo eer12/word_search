@@ -418,6 +418,15 @@ class LaunchGUI:
                 self.log("服务已成功启动，访问地址: http://localhost:8080")
                 self.running = True
                 self.stop_btn.config(state=tk.NORMAL)
+                
+                # 20秒后自动关闭窗口
+                self.log("启动器将在20秒后自动关闭...")
+                def auto_close():
+                    self.log("自动关闭启动器窗口")
+                    self.root.quit()
+                
+                # 设置20秒定时器
+                self.root.after(20000, auto_close)
             except Exception as e:
                 self.log(f"启动服务失败: {e}")
                 self.status_var.set("服务启动异常")

@@ -53,7 +53,8 @@ def build_launch_gui():
         f"{os.path.join(PROJECT_ROOT, 'wps_extractor.py')};.",
         f"{os.path.join(PROJECT_ROOT, 'analyze_wps.py')};.",
         f"{os.path.join(PROJECT_ROOT, 'query_db.py')};.",
-        f"{os.path.join(PROJECT_ROOT, 'templates')};templates"
+        f"{os.path.join(PROJECT_ROOT, 'templates')};templates",
+        f"{os.path.join(PROJECT_ROOT, 'dist', '使用说明.txt')};使用说明.txt"
     ]
     
     cmd = [
