@@ -28,6 +28,10 @@ class Config:
     # 文件编码配置
     FILE_ENCODING = 'utf-8'
     
+    # 密码验证配置
+    ENABLE_AUTH = True  # 是否启用密码验证
+    AUTH_PASSWORD = 'qk1230'  # 默认密码
+    
     # 动态计算的属性
     @classmethod
     def get_upload_folder(cls):

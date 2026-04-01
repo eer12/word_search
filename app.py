@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify
+from flask import Flask, render_template, request, redirect, url_for, jsonify, session
 import os
 import sqlite3
 from datetime import datetime
@@ -29,6 +29,20 @@ try:
 except ImportError:
     OLEFILE_AVAILABLE = False
 
+# 密码验证装饰器
+def login_required(f):
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # 如果未启用验证，直接通过
+        if not Config.ENABLE_AUTH:
+            return f(*args, **kwargs)
+        # 检查session中是否有登录状态
+        if 'logged_in' not in session or not session['logged_in']:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
 # 导入配置
 from config import Config
 
@@ -44,6 +58,9 @@ config_instance = Config()
 # 加载配置
 app.config['UPLOAD_FOLDER'] = config_instance.UPLOAD_FOLDER
 app.config['ALLOWED_EXTENSIONS'] = Config.ALLOWED_EXTENSIONS
+# 添加session配置
+app.config['SECRET_KEY'] = 'document_search_system_secret_key'
+app.config['SESSION_TYPE'] = 'filesystem'
 
 # 确保目录存在
 Config.ensure_directories()
@@ -319,11 +336,29 @@ def extract_context(text, keyword, max_chars=200):
     # 限制数量，不进行去重，确保显示所有关键词出现的句子
     return contexts[:10]  # 最多返回10个上下文
 
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        password = request.form.get('password')
+        # 验证密码
+        if password == Config.AUTH_PASSWORD:
+            # 设置登录状态
+            session['logged_in'] = True
+            # 重定向到首页
+            return redirect(url_for('index'))
+        else:
+            # 密码错误
+            return render_template('login.html', message='密码错误，请重试', message_type='error')
+    # GET请求，显示登录页面
+    return render_template('login.html', message=None, message_type=None)
+
 @app.route('/')
+@login_required
 def index():
     return render_template('index.html', message=None, message_type=None)
 
 @app.route('/upload')
+@login_required
 def upload_page():
     # 获取分类列表
     categories_list = []
@@ -335,6 +370,7 @@ def upload_page():
     return render_template('upload.html', message=None, message_type=None, categories=categories_list)
 
 @app.route('/search')
+@login_required
 def search():
     # 获取分类列表
     categories = []
@@ -346,6 +382,7 @@ def search():
     return render_template('search.html', categories=categories)
 
 @app.route('/upload', methods=['POST'])
+@login_required
 def upload_file():
     try:
         if 'document' not in request.files:
@@ -455,6 +492,7 @@ def upload_file():
         return render_template('upload.html', message=f'上传文件失败: {str(e)}', message_type='error')
 
 @app.route('/search-results')
+@login_required
 def search_results():
     match_query = request.args.get('match')
     like_query = request.args.get('like')
@@ -577,6 +615,7 @@ def search_results():
 
 # 分类管理路由
 @app.route('/categories')
+@login_required
 def categories():
     # 获取搜索参数
     search = request.args.get('search', '')
@@ -612,6 +651,7 @@ def categories():
     return render_template('categories.html', categories=categories_list, page=page, total_pages=total_pages, per_page=per_page, search=search)
 
 @app.route('/categories/add', methods=['GET', 'POST'])
+@login_required
 def add_category():
     if request.method == 'POST':
         name = request.form['name']
@@ -628,6 +668,7 @@ def add_category():
     return render_template('add-category.html')
 
 @app.route('/categories/edit/<int:id>', methods=['GET', 'POST'])
+@login_required
 def edit_category(id):
     if request.method == 'POST':
         name = request.form['name']
@@ -650,6 +691,7 @@ def edit_category(id):
     return render_template('edit-category.html', category=category)
 
 @app.route('/categories/delete/<int:id>')
+@login_required
 def delete_category(id):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
@@ -660,6 +702,7 @@ def delete_category(id):
     return redirect(url_for('categories'))
 
 @app.route('/files/delete/<int:id>')
+@login_required
 def delete_file(id):
     # 获取来源页面和搜索参数
     from_page = request.args.get('from', '')
@@ -716,6 +759,7 @@ def delete_file(id):
 
 # 文件列表路由
 @app.route('/file-list')
+@login_required
 def file_list():
     # 获取分页参数
     page = request.args.get('page', 1, type=int)
@@ -790,6 +834,7 @@ def file_list():
 
 # 系统设置路由
 @app.route('/merged-search')
+@login_required
 def merged_search():
     # 获取搜索参数
     match_keyword = request.args.get('match', '')
@@ -1004,6 +1049,7 @@ def merged_search():
     return render_template('merged-search.html', files=files_list, page=page, total_pages=total_pages, per_page=per_page, categories=categories, match_keyword=match_keyword, like_keyword=like_keyword, category_id=category_id)
 
 @app.route('/get-document-categories/<int:file_id>')
+@login_required
 def get_document_categories(file_id):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
@@ -1019,6 +1065,7 @@ def get_document_categories(file_id):
     return jsonify(result)
 
 @app.route('/update-document-categories', methods=['POST'])
+@login_required
 def update_document_categories():
     data = request.get_json()
     file_id = data.get('file_id')
@@ -1044,6 +1091,7 @@ def update_document_categories():
         conn.close()
 
 @app.route('/open-file-location/<int:file_id>')
+@login_required
 def open_file_location(file_id):
     # 根据文件ID获取文件路径
     conn = sqlite3.connect(DB_PATH)
@@ -1071,6 +1119,7 @@ def open_file_location(file_id):
         return '文件不存在'
 
 @app.route('/download-file/<int:file_id>')
+@login_required
 def download_file(file_id):
     # 根据文件ID获取文件路径和文件名
     conn = sqlite3.connect(DB_PATH)
@@ -1097,6 +1146,7 @@ def download_file(file_id):
         return '文件不存在'
 
 @app.route('/view-file/<int:file_id>')
+@login_required
 def view_file(file_id):
     # 根据文件ID获取文件路径、文件名和其他信息
     conn = sqlite3.connect(DB_PATH)
@@ -1180,6 +1230,7 @@ def view_file(file_id):
         return '文件不存在'
 
 @app.route('/get-file/<int:file_id>')
+@login_required
 def get_file(file_id):
     # 根据文件ID获取文件路径和文件名
     conn = sqlite3.connect(DB_PATH)
@@ -1222,6 +1273,7 @@ def get_file(file_id):
         return '文件不存在'
 
 @app.route('/settings', methods=['GET', 'POST'])
+@login_required
 def settings():
     if request.method == 'POST':
         # 打印表单数据
