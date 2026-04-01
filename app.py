@@ -385,13 +385,21 @@ def search():
 @login_required
 def upload_file():
     try:
+        # 获取分类列表
+        categories_list = []
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute('SELECT id, name FROM categories ORDER BY id DESC')
+        categories_list = c.fetchall()
+        conn.close()
+        
         if 'document' not in request.files:
-            return render_template('upload.html', message='未上传文件', message_type='error')
+            return render_template('upload.html', message='未上传文件', message_type='error', categories=categories_list)
         
         file = request.files['document']
         
         if file.filename == '':
-            return render_template('upload.html', message='未选择文件', message_type='error')
+            return render_template('upload.html', message='未选择文件', message_type='error', categories=categories_list)
         
         if file and allowed_file(file.filename):
             # 按文件类型创建子文件夹
@@ -484,12 +492,12 @@ def upload_file():
             conn.commit()
             conn.close()
             
-            return render_template('upload.html', message='文件上传成功', message_type='success')
+            return render_template('upload.html', message='文件上传成功', message_type='success', categories=categories_list)
         else:
-            return render_template('upload.html', message='无效的文件类型。仅支持.docx、.doc、.pdf、.wps和.txt格式。', message_type='error')
+            return render_template('upload.html', message='无效的文件类型。仅支持.docx、.doc、.pdf、.wps和.txt格式。', message_type='error', categories=categories_list)
     except Exception as e:
         print(f"上传文件失败: {e}")
-        return render_template('upload.html', message=f'上传文件失败: {str(e)}', message_type='error')
+        return render_template('upload.html', message=f'上传文件失败: {str(e)}', message_type='error', categories=categories_list)
 
 @app.route('/search-results')
 @login_required
