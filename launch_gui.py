@@ -23,11 +23,6 @@ if not os.path.exists(LOG_DIR):
 # 日志文件路径
 LOG_FILE = os.path.join(LOG_DIR, "launch.log")
 
-# MySQL配置
-MYSQL_INSTALL_PATH = os.path.join(CURRENT_DIR, "mysql")
-MYSQL_BIN_PATH = os.path.join(MYSQL_INSTALL_PATH, "bin")
-MYSQL_ROOT_PASSWORD = "123456"
-
 # 应用程序配置
 APP_DIR = CURRENT_DIR
 
@@ -70,7 +65,6 @@ class LaunchGUI:
         self.exit_btn.pack(side=tk.RIGHT, padx=10)
         
         # 服务进程
-        self.mysql_process = None
         self.app_process = None
         self.running = False
         
@@ -93,63 +87,7 @@ class LaunchGUI:
             # 防止日志记录导致无限循环
             print(f"日志记录失败: {e}")
     
-    def start_mysql_service(self):
-        """启动MySQL服务"""
-        self.log("正在启动MySQL服务...")
-        try:
-            # 检查MySQL目录是否存在
-            if not os.path.exists(MYSQL_INSTALL_PATH):
-                self.log(f"错误: MySQL目录不存在: {MYSQL_INSTALL_PATH}")
-                return False
-            
-            if not os.path.exists(MYSQL_BIN_PATH):
-                self.log(f"错误: MySQL bin目录不存在: {MYSQL_BIN_PATH}")
-                return False
-            
-            # 检查MySQL可执行文件是否存在
-            mysql_cmd = os.path.join(MYSQL_BIN_PATH, "mysql.exe")
-            if not os.path.exists(mysql_cmd):
-                self.log(f"错误: mysql.exe不存在: {mysql_cmd}")
-                return False
-            
-            mysqld_cmd = os.path.join(MYSQL_BIN_PATH, "mysqld.exe")
-            if not os.path.exists(mysqld_cmd):
-                self.log(f"错误: mysqld.exe不存在: {mysqld_cmd}")
-                return False
-            
-            # 检查MySQL是否已启动
-            result = subprocess.run([mysql_cmd, "-u", "root", f"--password={MYSQL_ROOT_PASSWORD}", "-e", "SELECT 1"], 
-                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            if result.returncode == 0:
-                self.log("MySQL服务已启动")
-                return True
-            
-            # 启动MySQL服务
-            # 使用--initialize-insecure参数初始化数据目录
-            self.log("初始化MySQL数据目录...")
-            init_result = subprocess.run([mysqld_cmd, "--initialize-insecure"], 
-                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            if init_result.returncode != 0:
-                self.log(f"初始化数据目录失败: {init_result.stderr}")
-            
-            # 启动MySQL
-            self.log("启动MySQL服务...")
-            self.mysql_process = subprocess.Popen([mysqld_cmd, "--console"])
-            time.sleep(5)  # 等待服务启动
-            
-            # 再次检查服务是否启动
-            result = subprocess.run([mysql_cmd, "-u", "root", f"--password={MYSQL_ROOT_PASSWORD}", "-e", "SELECT 1"], 
-                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            if result.returncode == 0:
-                self.log("MySQL服务启动成功")
-                return True
-            else:
-                self.log(f"MySQL服务启动失败: {result.stderr}")
-                return False
-        except Exception as e:
-            self.log(f"启动MySQL服务失败: {e}")
-            self.log(traceback.format_exc())
-            return False
+
     
     def start_app_service(self):
         """启动应用程序服务"""
@@ -228,17 +166,17 @@ class LaunchGUI:
                         import socket
                         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                         sock.settimeout(1)
-                        result = sock.connect_ex(('localhost', 8082))
+                        result = sock.connect_ex(('localhost', 8080))
                         sock.close()
                         if result == 0:
-                            self.log("应用服务启动成功，端口8082已监听")
+                            self.log("应用服务启动成功，端口8080已监听")
                             return True
                         else:
-                            self.log(f"端口8082未监听，连接结果: {result}")
+                            self.log(f"端口8080未监听，连接结果: {result}")
                     except Exception as e:
                         self.log(f"检查端口时出错: {e}")
                 
-                self.log("应用服务启动超时，端口8082未监听")
+                self.log("应用服务启动超时，端口8080未监听")
                 # 检查进程状态（仅在非打包环境）
                 if self.app_process is not None:
                     if self.app_process.poll() is not None:
@@ -309,17 +247,17 @@ class LaunchGUI:
                             import socket
                             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                             sock.settimeout(1)
-                            result = sock.connect_ex(('localhost', 8082))
+                            result = sock.connect_ex(('localhost', 8080))
                             sock.close()
                             if result == 0:
-                                self.log("应用服务启动成功，端口8082已监听")
+                                self.log("应用服务启动成功，端口8080已监听")
                                 return True
                             else:
-                                self.log(f"端口8082未监听，连接结果: {result}")
+                                self.log(f"端口未监听，连接结果: {result}")
                         except Exception as e:
                             self.log(f"检查端口时出错: {e}")
                     
-                    self.log("应用服务启动超时，端口8082未监听")
+                    self.log("应用服务启动超时，端口0未监听")
                     # 检查进程状态
                     if self.app_process.poll() is not None:
                         self.log(f"进程已退出，退出码: {self.app_process.returncode}")
@@ -400,12 +338,6 @@ class LaunchGUI:
                 self.start_btn.config(state=tk.DISABLED)
                 self.stop_btn.config(state=tk.DISABLED)
                 
-                # 启动MySQL服务
-                if not self.start_mysql_service():
-                    self.status_var.set("MySQL服务启动失败")
-                    self.start_btn.config(state=tk.NORMAL)
-                    return
-                
                 # 启动应用服务
                 if not self.start_app_service():
                     self.status_var.set("应用服务启动失败")
@@ -413,7 +345,7 @@ class LaunchGUI:
                     return
                 
                 self.status_var.set("服务启动成功")
-                self.log("服务已成功启动，访问地址: http://localhost:8082")
+                self.log("服务已成功启动，访问地址: http://localhost:8080")
                 self.running = True
                 self.stop_btn.config(state=tk.NORMAL)
             except Exception as e:
@@ -451,25 +383,7 @@ class LaunchGUI:
                 # 由于使用了daemon=True，主线程退出时后台线程会自动退出
                 self.log("打包环境: 应用服务在后台线程中运行，将随主线程退出而停止")
             
-            # 停止MySQL服务
-            if self.mysql_process:
-                try:
-                    self.log("停止MySQL服务...")
-                    mysqladmin_cmd = os.path.join(MYSQL_BIN_PATH, "mysqladmin.exe")
-                    if os.path.exists(mysqladmin_cmd):
-                        subprocess.run([mysqladmin_cmd, "-u", "root", f"--password={MYSQL_ROOT_PASSWORD}", "shutdown"], 
-                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=5)
-                    self.mysql_process.terminate()
-                    try:
-                        self.mysql_process.wait(timeout=3)
-                        self.log("MySQL服务已停止")
-                    except subprocess.TimeoutExpired:
-                        self.log("MySQL服务未响应，强制停止...")
-                        self.mysql_process.kill()
-                        self.mysql_process.wait()
-                        self.log("MySQL服务已强制停止")
-                except Exception as e:
-                    self.log(f"停止MySQL服务失败: {e}")
+
             
             # 确保所有相关进程都已停止
             try:

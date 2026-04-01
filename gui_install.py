@@ -17,7 +17,7 @@ def is_admin():
 class InstallerApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("文档搜索系统安装程序")
+        self.root.title("文档搜索系统安装程序 created by kai qiao")
         self.root.geometry("600x400")
         self.root.resizable(False, False)
         
@@ -291,7 +291,7 @@ def main():
     # 检查是否以管理员权限运行
     if not is_admin():
         # 提示用户需要管理员权限
-        messagebox.showerror("需要管理员权限", "安装MySQL服务需要管理员权限，请右键点击setup.exe并选择'以管理员身份运行'来启动安装程序")
+        messagebox.showerror("需要管理员权限", "安装文档搜索系统需要管理员权限，请右键点击gui_install.exe并选择'以管理员身份运行'来启动安装程序")
         # 退出安装程序
         sys.exit()
     
