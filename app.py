@@ -1129,16 +1129,20 @@ def view_file(file_id):
                     print(f"{file_ext.upper()}文件转换成功")
                 except Exception as e:
                     print(f"{file_ext.upper()}文件转换失败: {e}")
-                    # 尝试使用WPS文件的文本提取作为备用
-                    if file_ext == 'wps':
-                        try:
+                    # 尝试使用文本提取作为备用
+                    try:
+                        if file_ext == 'wps':
                             text = extract_text_from_wps(file_path)
-                            if text:
-                                # 将文本转换为简单的HTML
-                                word_html = f"<pre>{text}</pre>"
-                                print("WPS文件文本提取成功并转换为HTML")
-                        except Exception as e2:
-                            print(f"WPS文件文本提取失败: {e2}")
+                        elif file_ext == 'doc':
+                            text = extract_text_from_doc(file_path)
+                        elif file_ext == 'docx':
+                            text = extract_text_from_docx(file_path)
+                        if text:
+                            # 将文本转换为简单的HTML
+                            word_html = f"<pre>{text}</pre>"
+                            print(f"{file_ext.upper()}文件文本提取成功并转换为HTML")
+                    except Exception as e2:
+                        print(f"{file_ext.upper()}文件文本提取失败: {e2}")
             
             # 渲染模板
             return render_template('view-file.html', 
