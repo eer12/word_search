@@ -523,13 +523,17 @@
         <input type="text" id="like" name="like" placeholder="输入句子或短语进行全文搜索..." value="{{ like_keyword }}">
       </div>
       <div class="form-group">
-        <label for="category">分类</label>
-        <select id="category" name="category">
-          <option value="">全部分类</option>
-          {% for category in categories %}
-            <option value="{{ category[0] }}" {% if category[0]|string == category_id %}selected{% endif %}>{{ category[1] }}</option>
-          {% endfor %}
-        </select>
+        <label>分类（可多选）</label>
+        <div class="category-selector" style="margin-top: 8px; max-height: 120px; overflow-y: auto; border: 1px solid #ddd; border-radius: 6px; padding: 10px; background-color: #f9f9f9;">
+          <div class="category-tags" style="display: flex; flex-wrap: wrap; gap: 8px;">
+            {% for category in categories %}
+              <label style="display: flex; align-items: center; gap: 4px; font-size: 0.85rem; padding: 4px 10px; border: 1px solid #ddd; border-radius: 16px; background-color: white; transition: all 0.3s ease;">
+                <input type="checkbox" name="category" value="{{ category[0] }}" {% if category[0]|string in category_ids %}checked{% endif %} style="margin: 0;">
+                <span style="cursor: pointer;">{{ category[1] }}</span>
+              </label>
+            {% endfor %}
+          </div>
+        </div>
       </div>
       <button type="submit">搜索</button>
     </form>

@@ -839,7 +839,7 @@ def merged_search():
     # 获取搜索参数
     match_keyword = request.args.get('match', '')
     like_keyword = request.args.get('like', '')
-    category_id = request.args.get('category', '')
+    category_ids = request.args.getlist('category')
     page = request.args.get('page', 1, type=int)
     per_page = 10  # 每页显示10条记录
     offset = (page - 1) * per_page
@@ -847,7 +847,7 @@ def merged_search():
     # 使用关键词作为搜索词
     search_term = match_keyword if match_keyword else like_keyword
     
-    print(f"Search parameters: match_keyword='{match_keyword}', like_keyword='{like_keyword}', category_id='{category_id}', page={page}")
+    print(f"Search parameters: match_keyword='{match_keyword}', like_keyword='{like_keyword}', category_ids='{category_ids}', page={page}")
     
     # 获取分类列表
     categories = []
@@ -894,14 +894,27 @@ def merged_search():
                 like_param = '%' + like_keyword + '%'
             params.append(like_param)
     
-    if category_id and category_id != '':
+    if category_ids and len(category_ids) > 0:
         try:
-            cat_id = int(category_id)
-            where_clause += ' AND d.id IN (SELECT document_id FROM document_categories WHERE category_id = ?)'
-            params.append(cat_id)
-            print(f"Added category filter: {cat_id}")
-        except ValueError:
-            print(f"Invalid category_id: {category_id}")
+            # 过滤掉空字符串
+            category_ids = [cid for cid in category_ids if cid]
+            if category_ids:
+                # 构建分类OR条件
+                cat_conditions = []
+                for cid in category_ids:
+                    try:
+                        cat_id = int(cid)
+                        cat_conditions.append('category_id = ?')
+                        params.append(cat_id)
+                        print(f"Added category filter: {cat_id}")
+                    except ValueError:
+                        print(f"Invalid category_id: {cid}")
+                if cat_conditions:
+                    where_clause += ' AND d.id IN (SELECT document_id FROM document_categories WHERE ' + ' OR '.join(cat_conditions) + ')'
+        except Exception as e:
+            # 处理异常，忽略分类过滤
+            print(f"处理分类参数时出错: {e}")
+            pass
     
     # 获取总记录数
     count_sql = f'''SELECT COUNT(*) FROM documents d
@@ -1046,7 +1059,7 @@ def merged_search():
             'contexts': contexts
         })
     
-    return render_template('merged-search.html', files=files_list, page=page, total_pages=total_pages, per_page=per_page, categories=categories, match_keyword=match_keyword, like_keyword=like_keyword, category_id=category_id)
+    return render_template('merged-search.html', files=files_list, page=page, total_pages=total_pages, per_page=per_page, categories=categories, match_keyword=match_keyword, like_keyword=like_keyword, category_ids=category_ids)
 
 @app.route('/get-document-categories/<int:file_id>')
 @login_required
