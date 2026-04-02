@@ -535,8 +535,33 @@ def upload_file():
             
             # 提取文件内容
             content = ''
+            content_valid = True
+            is_watermark_file = False
+            
             if file.filename.endswith('.pdf'):
                 content = extract_text_from_pdf(filepath)
+                # 检查是否只提取到了郑政钉水印信息
+                if content:
+                    # 检查是否包含水印特征
+                    watermark_features = [
+                        '禁止传输涉密文件'
+                    ]
+                    
+                    # 统计水印特征出现的次数
+                    watermark_count = 0
+                    for feature in watermark_features:
+                        watermark_count += content.count(feature)
+                    
+                    # 检查是否重复出现相同的水印信息
+                    lines = content.strip().split('\n')
+                    unique_lines = set(lines)
+                    
+                    # 如果水印特征出现次数较多，或者大部分行都是重复的，认为是水印
+                    if watermark_count >= 3 or (len(lines) > 3 and len(unique_lines) < len(lines) * 0.3):
+                        print(f"PDF文件只提取到水印信息: {content}")
+                        content_valid = False
+                        # 标记为水印文件
+                        is_watermark_file = True
             elif file.filename.endswith('.docx'):
                 content = extract_text_from_docx(filepath)
             elif file.filename.endswith('.doc'):
@@ -552,6 +577,37 @@ def upload_file():
                 content = extract_text_from_excel(filepath)
                 print(f"Excel文件提取内容长度: {len(content)}")
                 print(f"Excel文件提取内容前100字符: {content[:100]}...")
+            
+            # 检查文件内容是否有效
+            if not content or len(content.strip()) < 10:  # 内容至少要有10个字符
+                content_valid = False
+            
+            # 检查是否有乱码（简单检查：如果非ASCII字符过多或出现明显乱码特征）
+            if content_valid:
+                # 统计非ASCII字符比例
+                non_ascii_count = sum(1 for c in content if ord(c) > 127)
+                total_count = len(content)
+                if total_count > 0:
+                    non_ascii_ratio = non_ascii_count / total_count
+                    # 如果非ASCII字符比例过高，可能是乱码
+                    if non_ascii_ratio > 0.9:
+                        content_valid = False
+                
+                # 检查是否有连续的特殊字符，可能是乱码
+                import re
+                if re.search(r'[\x00-\x1f\x7f]{5,}', content):
+                    content_valid = False
+            
+            if not content_valid:
+                # 删除上传的文件
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+                # 根据是否为水印文件显示不同的错误消息
+                if is_watermark_file:
+                    error_message = '上传失败：不支持郑政钉或带水印pdf文件'
+                else:
+                    error_message = '上传失败：无法读取文件内容或文件内容无效'
+                return render_template('upload.html', message=error_message, message_type='error', categories=categories_list)
             
             # 获取文件大小
             file_size = os.path.getsize(filepath)
@@ -585,23 +641,22 @@ def upload_file():
                 )
             
             # 使用jieba分词后插入到全文检索表
-            if content:
-                try:
-                    import jieba
-                    # 使用jieba进行分词
-                    seg_list = jieba.cut(content)
-                    # 将分词结果用空格连接
-                    seg_content = ' '.join(seg_list)
-                    c.execute(
-                        'INSERT INTO file_content_fts (content, file_id) VALUES (?, ?)',
-                        (seg_content, document_id)
-                    )
-                except ImportError:
-                    # 如果jieba未安装，直接使用原内容
-                    c.execute(
-                        'INSERT INTO file_content_fts (content, file_id) VALUES (?, ?)',
-                        (content, document_id)
-                    )
+            try:
+                import jieba
+                # 使用jieba进行分词
+                seg_list = jieba.cut(content)
+                # 将分词结果用空格连接
+                seg_content = ' '.join(seg_list)
+                c.execute(
+                    'INSERT INTO file_content_fts (content, file_id) VALUES (?, ?)',
+                    (seg_content, document_id)
+                )
+            except ImportError:
+                # 如果jieba未安装，直接使用原内容
+                c.execute(
+                    'INSERT INTO file_content_fts (content, file_id) VALUES (?, ?)',
+                    (content, document_id)
+                )
             
             conn.commit()
             conn.close()
