@@ -395,6 +395,13 @@ def upload_page():
 @app.route('/search')
 @login_required
 def search():
+    # 获取搜索参数
+    match = request.args.get('match', '')
+    like = request.args.get('like', '')
+    category_id = request.args.get('category', '')
+    file_type = request.args.get('file_type', '')
+    file_name = request.args.get('file_name', '')
+    
     # 获取分类列表
     categories = []
     conn = sqlite3.connect(DB_PATH)
@@ -402,7 +409,7 @@ def search():
     c.execute('SELECT id, name FROM categories')
     categories = c.fetchall()
     conn.close()
-    return render_template('search.html', categories=categories, user_role=session.get('user_role'))
+    return render_template('search.html', categories=categories, match=match, like=like, category_id=category_id, file_type=file_type, file_name=file_name, user_role=session.get('user_role'))
 
 @app.route('/upload', methods=['POST'])
 @login_required
@@ -527,10 +534,12 @@ def upload_file():
 def search_results():
     match_query = request.args.get('match')
     like_query = request.args.get('like')
-    category_id = request.args.get('category', '')
+    category_id = request.args.getlist('category')
+    file_type = request.args.get('file_type', '')
+    file_name = request.args.get('file_name', '')
     
     # 确保至少有一个搜索框有输入
-    if not match_query and not like_query:
+    if not match_query and not like_query and not file_name:
         return redirect(url_for('search'))
     
     # 获取分类映射
@@ -549,72 +558,116 @@ def search_results():
     # 构建查询和参数
     if match_query:
         # 使用FTS5 MATCH操作符进行精确匹配
-        if category_id:
-            sql = '''
-                SELECT DISTINCT documents.* 
-                FROM documents 
-                JOIN file_content_fts ON documents.id = file_content_fts.file_id 
-                JOIN document_categories ON documents.id = document_categories.document_id
-                WHERE file_content_fts MATCH ? AND document_categories.category_id = ? AND documents.is_delete = 0 
-                ORDER BY documents.upload_time DESC
-            '''
-        else:
-            sql = '''
-                SELECT DISTINCT documents.* 
-                FROM documents 
-                JOIN file_content_fts ON documents.id = file_content_fts.file_id 
-                WHERE file_content_fts MATCH ? AND documents.is_delete = 0 
-                ORDER BY documents.upload_time DESC
-            '''
+        where_clauses = ['file_content_fts MATCH ?', 'documents.is_delete = 0']
+        params = []
+        
         # 使用jieba对搜索词进行分词
         try:
             import jieba
             seg_list = jieba.cut(match_query)
             seg_query = ' '.join(seg_list)
-            if category_id:
-                c.execute(sql, (seg_query, category_id))
-            else:
-                c.execute(sql, (seg_query,))
+            params.append(seg_query)
         except ImportError:
             # 如果jieba未安装，直接使用原内容
+            params.append(match_query)
+        
+        # 构建JOIN子句和WHERE条件
+        join_clauses = 'JOIN file_content_fts ON documents.id = file_content_fts.file_id '
+        
+        # 添加分类过滤
+        if category_id and len(category_id) > 0:
+            # 过滤掉空字符串
+            category_id = [cid for cid in category_id if cid]
             if category_id:
-                c.execute(sql, (match_query, category_id))
-            else:
-                c.execute(sql, (match_query,))
+                # 为每个分类添加一个JOIN子句
+                for i, cat_id in enumerate(category_id):
+                    try:
+                        int(cat_id)
+                        join_clauses += f'JOIN document_categories dc{i} ON documents.id = dc{i}.document_id '
+                        where_clauses.append(f'dc{i}.category_id = ?')
+                        params.append(cat_id)
+                    except ValueError:
+                        pass
+        
+        # 添加文件类型过滤
+        if file_type:
+            where_clauses.append('documents.file_name LIKE ?')
+            params.append('%' + file_type)
+        
+        # 添加文件名过滤
+        if file_name:
+            where_clauses.append('documents.file_name LIKE ?')
+            params.append('%' + file_name + '%')
+        
+        # 构建SQL语句
+        sql = '''
+            SELECT DISTINCT documents.* 
+            FROM documents 
+            ''' + join_clauses + '''
+            WHERE ''' + ' AND '.join(where_clauses) + ''' 
+            ORDER BY documents.upload_time DESC
+        '''
+        
+        c.execute(sql, params)
         query = match_query
     else:
         # 使用LIKE操作符进行模糊匹配
-        if category_id:
-            sql = '''
-                SELECT DISTINCT documents.* 
-                FROM documents 
-                JOIN file_content_fts ON documents.id = file_content_fts.file_id 
-                JOIN document_categories ON documents.id = document_categories.document_id
-                WHERE file_content_fts.content LIKE ? AND document_categories.category_id = ? AND documents.is_delete = 0 
-                ORDER BY documents.upload_time DESC
-            '''
-        else:
-            sql = '''
-                SELECT DISTINCT documents.* 
-                FROM documents 
-                JOIN file_content_fts ON documents.id = file_content_fts.file_id 
-                WHERE file_content_fts.content LIKE ? AND documents.is_delete = 0 
-                ORDER BY documents.upload_time DESC
-            '''
-        # 对搜索词进行分词处理
-        try:
-            import jieba
-            seg_list = jieba.cut(like_query)
-            seg_query = ' '.join(seg_list)
-            # 构建LIKE查询参数
-            like_param = '%' + seg_query + '%'
-        except ImportError:
-            # 如果jieba未安装，直接使用原内容
-            like_param = '%' + like_query + '%'
-        if category_id:
-            c.execute(sql, (like_param, category_id))
-        else:
-            c.execute(sql, (like_param,))
+        where_clauses = ['documents.is_delete = 0']
+        params = []
+        
+        # 添加内容搜索
+        if like_query:
+            where_clauses.append('file_content_fts.content LIKE ?')
+            # 对搜索词进行分词处理
+            try:
+                import jieba
+                seg_list = jieba.cut(like_query)
+                seg_query = ' '.join(seg_list)
+                # 构建LIKE查询参数
+                like_param = '%' + seg_query + '%'
+            except ImportError:
+                # 如果jieba未安装，直接使用原内容
+                like_param = '%' + like_query + '%'
+            params.append(like_param)
+        
+        # 构建JOIN子句和WHERE条件
+        join_clauses = 'JOIN file_content_fts ON documents.id = file_content_fts.file_id '
+        
+        # 添加分类过滤
+        if category_id and len(category_id) > 0:
+            # 过滤掉空字符串
+            category_id = [cid for cid in category_id if cid]
+            if category_id:
+                # 为每个分类添加一个JOIN子句
+                for i, cat_id in enumerate(category_id):
+                    try:
+                        int(cat_id)
+                        join_clauses += f'JOIN document_categories dc{i} ON documents.id = dc{i}.document_id '
+                        where_clauses.append(f'dc{i}.category_id = ?')
+                        params.append(cat_id)
+                    except ValueError:
+                        pass
+        
+        # 添加文件类型过滤
+        if file_type:
+            where_clauses.append('documents.file_name LIKE ?')
+            params.append('%' + file_type)
+        
+        # 添加文件名过滤
+        if file_name:
+            where_clauses.append('documents.file_name LIKE ?')
+            params.append('%' + file_name + '%')
+        
+        # 构建SQL语句
+        sql = '''
+            SELECT DISTINCT documents.* 
+            FROM documents 
+            ''' + join_clauses + '''
+            WHERE ''' + ' AND '.join(where_clauses) + ''' 
+            ORDER BY documents.upload_time DESC
+        '''
+        
+        c.execute(sql, params)
         query = like_query
     results = c.fetchall()
     conn.close()
@@ -642,7 +695,7 @@ def search_results():
             'upload_date': result[5]
         })
     
-    return render_template('search-results.html', query=query, results=results_list)
+    return render_template('search-results.html', query=query, results=results_list, match_query=match_query, like_query=like_query, category_id=category_id, file_type=file_type, file_name=file_name)
 
 # 分类管理路由
 @app.route('/categories')
@@ -871,6 +924,8 @@ def merged_search():
     match_keyword = request.args.get('match', '')
     like_keyword = request.args.get('like', '')
     category_ids = request.args.getlist('category')
+    file_type = request.args.get('file_type', '')
+    file_name = request.args.get('file_name', '')
     page = request.args.get('page', 1, type=int)
     per_page = 10  # 每页显示10条记录
     offset = (page - 1) * per_page
@@ -878,7 +933,7 @@ def merged_search():
     # 使用关键词作为搜索词
     search_term = match_keyword if match_keyword else like_keyword
     
-    print(f"Search parameters: match_keyword='{match_keyword}', like_keyword='{like_keyword}', category_ids='{category_ids}', page={page}")
+    print(f"Search parameters: match_keyword='{match_keyword}', like_keyword='{like_keyword}', category_ids='{category_ids}', file_type='{file_type}', file_name='{file_name}', page={page}")
     
     # 获取分类列表
     categories = []
@@ -925,23 +980,30 @@ def merged_search():
                 like_param = '%' + like_keyword + '%'
             params.append(like_param)
     
+    # 添加文件类型过滤
+    if file_type:
+        where_clause += ' AND d.file_name LIKE ?'
+        params.append('%' + file_type)
+    
+    # 添加文件名过滤
+    if file_name:
+        where_clause += ' AND d.file_name LIKE ?'
+        params.append('%' + file_name + '%')
+    
     if category_ids and len(category_ids) > 0:
         try:
             # 过滤掉空字符串
             category_ids = [cid for cid in category_ids if cid]
             if category_ids:
-                # 构建分类OR条件
-                cat_conditions = []
+                # 构建分类AND条件 - 文件必须包含所有选中的分类
                 for cid in category_ids:
                     try:
                         cat_id = int(cid)
-                        cat_conditions.append('category_id = ?')
+                        where_clause += ' AND d.id IN (SELECT document_id FROM document_categories WHERE category_id = ?)'
                         params.append(cat_id)
                         print(f"Added category filter: {cat_id}")
                     except ValueError:
                         print(f"Invalid category_id: {cid}")
-                if cat_conditions:
-                    where_clause += ' AND d.id IN (SELECT document_id FROM document_categories WHERE ' + ' OR '.join(cat_conditions) + ')'
         except Exception as e:
             # 处理异常，忽略分类过滤
             print(f"处理分类参数时出错: {e}")
@@ -1090,7 +1152,7 @@ def merged_search():
             'contexts': contexts
         })
     
-    return render_template('merged-search.html', files=files_list, page=page, total_pages=total_pages, per_page=per_page, categories=categories, match_keyword=match_keyword, like_keyword=like_keyword, category_ids=category_ids, user_role=session.get('user_role'))
+    return render_template('merged-search.html', files=files_list, page=page, total_pages=total_pages, per_page=per_page, categories=categories, match_keyword=match_keyword, like_keyword=like_keyword, category_ids=category_ids, file_type=file_type, file_name=file_name, user_role=session.get('user_role'))
 
 @app.route('/get-document-categories/<int:file_id>')
 @login_required

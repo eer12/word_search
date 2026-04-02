@@ -115,7 +115,7 @@
         <p>请尝试使用其他关键词进行搜索</p>
       </div>
     {% endif %}
-    <a href="/search" class="back-link">返回搜索</a>
+    <a href="{{ url_for('search', match=match_query, like=like_query, category=category_id, file_type=file_type, file_name=file_name) }}" class="back-link">返回搜索</a>
   </div>
 </body>
 </html>

@@ -77,20 +77,35 @@
     <form class="search-form" action="/search-results" method="get">
       <div style="margin-bottom: 15px;">
         <label style="display: block; margin-bottom: 5px;">关键词搜索 (MATCH)</label>
-        <input type="text" name="match" placeholder="输入关键词进行搜索...">
+        <input type="text" name="match" placeholder="输入关键词进行搜索..." value="{{ match or '' }}">
       </div>
       <div style="margin-bottom: 15px;">
         <label style="display: block; margin-bottom: 5px;">全文搜索 (LIKE)</label>
-        <input type="text" name="like" placeholder="输入句子或短语进行全文搜索...">
+        <input type="text" name="like" placeholder="输入句子或短语进行全文搜索..." value="{{ like or '' }}">
       </div>
       <div style="margin-bottom: 15px;">
         <label style="display: block; margin-bottom: 5px;">分类</label>
         <select name="category">
-          <option value="">全部分类</option>
+          <option value="" {% if not category %}selected{% endif %}>全部分类</option>
           {% for category in categories %}
-            <option value="{{ category[0] }}">{{ category[1] }}</option>
+            <option value="{{ category[0] }}" {% if category_id == category[0]|string %}selected{% endif %}>{{ category[1] }}</option>
           {% endfor %}
         </select>
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px;">文件类型</label>
+        <select name="file_type">
+          <option value="" {% if not file_type %}selected{% endif %}>全部类型</option>
+          <option value=".pdf" {% if file_type == '.pdf' %}selected{% endif %}>PDF</option>
+          <option value=".docx" {% if file_type == '.docx' %}selected{% endif %}>Word (docx)</option>
+          <option value=".doc" {% if file_type == '.doc' %}selected{% endif %}>Word (doc)</option>
+          <option value=".wps" {% if file_type == '.wps' %}selected{% endif %}>WPS</option>
+          <option value=".txt" {% if file_type == '.txt' %}selected{% endif %}>TXT</option>
+        </select>
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px;">文件名搜索</label>
+        <input type="text" name="file_name" placeholder="输入文件名进行模糊搜索..." value="{{ file_name or '' }}">
       </div>
       <button type="submit">搜索</button>
     </form>

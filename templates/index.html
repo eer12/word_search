@@ -63,51 +63,97 @@
       margin-top: 20px;
     }
     .feature-card {
-      background-color: white;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-      text-align: center;
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      min-height: 200px;
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        padding: 35px;
+        border-radius: 16px;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+        text-align: center;
+        transition: all 0.3s ease;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 240px;
+        border: 1px solid #e9ecef;
+        position: relative;
+        overflow: hidden;
     }
     .feature-card:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        transform: translateY(-8px);
+        box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
+        border-color: #667eea;
+    }
+    .feature-card:before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
     }
     .feature-card h3 {
-      color: #2c3e50;
-      margin-top: 0;
-      margin-bottom: 10px;
-      font-size: 1.1rem;
-      font-weight: 600;
+        color: #2c3e50;
+        margin-top: 0;
+        margin-bottom: 20px;
+        font-size: 1.3rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        z-index: 1;
+    }
+    .feature-card h3:before {
+        content: '';
+        display: inline-block;
+        width: 28px;
+        height: 28px;
+        margin-right: 12px;
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+    }
+    .feature-card:nth-child(1) h3:before {
+        background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="%23667eea" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14h-2v-4H8v-2h2V9h2v2h2v2h-2v4z"/></svg>');
+    }
+    .feature-card:nth-child(2) h3:before {
+        background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="%23667eea" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>');
+    }
+    .feature-card:nth-child(3) h3:before {
+        background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="%23667eea" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>');
     }
     .feature-card p {
-      color: #666;
-      margin-bottom: 15px;
-      line-height: 1.5;
-      font-size: 0.9rem;
-      flex: 1;
+        color: #555;
+        margin-bottom: 25px;
+        line-height: 1.7;
+        font-size: 1rem;
+        font-weight: 400;
+        flex: 1;
+        position: relative;
+        z-index: 1;
     }
     .btn {
       display: inline-block;
-      padding: 10px 20px;
-      background-color: #3498db;
+      padding: 12px 24px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
       text-decoration: none;
-      border-radius: 6px;
-      font-weight: 500;
-      transition: background-color 0.3s ease, transform 0.2s ease;
+      border-radius: 8px;
+      font-weight: 600;
+      transition: all 0.3s ease;
       align-self: center;
       margin-top: 10px;
-      font-size: 0.9rem;
+      font-size: 0.95rem;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+      border: none;
+      cursor: pointer;
+      position: relative;
+      z-index: 1;
     }
     .btn:hover {
-      background-color: #2980b9;
-      transform: translateY(-2px);
+      background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+      transform: translateY(-3px);
+      box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
     }
     .message {
       padding: 12px;
@@ -172,6 +218,32 @@
         <a href="/categories" class="btn">管理分类</a>
       </div>
     </div>
+    
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px; border-radius: 16px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12); margin-top: 30px; line-height: 1.7;">
+      <div style="display: flex; align-items: center; margin-bottom: 25px;">
+        <div style="background-color: rgba(255, 255, 255, 0.2); color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 20px; font-size: 1.4rem;">
+          <i class="fa fa-search"></i>
+        </div>
+        <h3 style="color: white; font-size: 1.6rem; font-weight: 700; margin: 0; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">系统介绍</h3>
+      </div>
+      
+      <div style="background-color: rgba(255, 255, 255, 0.95); padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); backdrop-filter: blur(10px);">
+        <p style="color: #333; margin-bottom: 20px; font-size: 1.05rem; font-weight: 400; line-height: 1.7;">本文档搜索系统专为写作人员设计，旨在帮助您快速找到所需的参考资料。无论是撰写报告、论文还是其他文档，您都可以通过关键词搜索，在海量文件中迅速定位到包含特定内容的文件。</p>
+        
+        <div style="background: linear-gradient(135deg, #f0f4ff 0%, #e0e7ff 100%); border-left: 4px solid #667eea; padding: 20px; margin-bottom: 20px; border-radius: 0 8px 8px 0; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);">
+          <p style="color: #333; margin: 0; font-size: 1.05rem; font-weight: 500; line-height: 1.6;"><strong style="color: #667eea;">使用方法：</strong>当您遇到好的文章或参考资料时，只需将其上传到系统中，系统会自动提取文件内容并建立索引。之后，当您需要查找相关内容时，只需在搜索框中输入关键词，系统会立即为您呈现包含这些内容的所有文档。</p>
+        </div>
+        
+        <p style="color: #333; margin-bottom: 20px; font-size: 1.05rem; font-weight: 400; line-height: 1.7;">例如，当您需要查找关于"载体优势"、"形成闭环"、"创新模式"等特定概念的参考资料时，只需在搜索框中输入相关关键词，系统会立即为您呈现包含这些内容的所有文档，大大提高您的写作效率。</p>
+        
+        <div style="background: linear-gradient(135deg, #f0f4ff 0%, #e0e7ff 100%); border-left: 4px solid #667eea; padding: 20px; margin-bottom: 20px; border-radius: 0 8px 8px 0; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);">
+          <p style="color: #333; margin: 0; font-size: 1.05rem; font-weight: 500; line-height: 1.6;"><strong style="color: #667eea;">注意：</strong>系统搜索的是您上传到系统中的文件内容，而不是网络搜索。如果您没有上传相关文件，系统将无法找到对应内容。</p>
+        </div>
+        
+        <p style="color: #333; margin: 0; font-size: 1.05rem; font-weight: 400; line-height: 1.7;"><strong style="color: #667eea;">优势对比：</strong>与Windows系统的搜索功能相比，本系统具有明显优势：Windows只能通过文件名或有限的文件属性进行搜索，而本系统可以深入搜索文件内容，让您能够通过文章中的具体词汇、短语或概念快速找到所需文件，更加便捷高效。</p>
+      </div>
+    </div>
+    
     {% if message %}
       <div class="message {{ message_type }}">
         {{ message }}
@@ -179,7 +251,7 @@
     {% endif %}
   </div>
   <footer>
-    <p>© 2026 文档本地存储检索系统1.2，Created by 恺乔</p>
+    <p>© 2026 文档本地存储检索系统1.2  Created by 恺乔</p>
   </footer>
 </body>
 </html>

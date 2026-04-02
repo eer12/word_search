@@ -524,6 +524,21 @@
           </div>
         </div>
       </div>
+      <div class="form-group">
+        <label for="file_type">文件类型</label>
+        <select id="file_type" name="file_type">
+          <option value="">全部类型</option>
+          <option value=".pdf" {% if file_type == '.pdf' %}selected{% endif %}>PDF</option>
+          <option value=".docx" {% if file_type == '.docx' %}selected{% endif %}>Word (docx)</option>
+          <option value=".doc" {% if file_type == '.doc' %}selected{% endif %}>Word (doc)</option>
+          <option value=".wps" {% if file_type == '.wps' %}selected{% endif %}>WPS</option>
+          <option value=".txt" {% if file_type == '.txt' %}selected{% endif %}>TXT</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="file_name">文件名搜索</label>
+        <input type="text" id="file_name" name="file_name" placeholder="输入文件名进行模糊搜索..." value="{{ file_name }}">
+      </div>
       <button type="submit">搜索</button>
     </form>
     <p style="margin-top: 15px; font-size: 14px; color: #666;">
@@ -625,19 +640,19 @@
             <ul>
                 {% if page > 1 %}
                 <li>
-                    <a href="{{ url_for('merged_search', page=page-1, match=match_keyword, like=like_keyword, category=category_id) }}">上一页</a>
+                    <a href="{{ url_for('merged_search', page=page-1, match=match_keyword, like=like_keyword, category=category_id, file_type=file_type, file_name=file_name) }}">上一页</a>
                 </li>
                 {% endif %}
                 
                 {% for p in range(1, total_pages + 1) %}
                 <li>
-                    <a href="{{ url_for('merged_search', page=p, match=match_keyword, like=like_keyword, category=category_id) }}" {% if p == page %}class="active"{% endif %}>{{ p }}</a>
+                    <a href="{{ url_for('merged_search', page=p, match=match_keyword, like=like_keyword, category=category_id, file_type=file_type, file_name=file_name) }}" {% if p == page %}class="active"{% endif %}>{{ p }}</a>
                 </li>
                 {% endfor %}
                 
                 {% if page < total_pages %}
                 <li>
-                    <a href="{{ url_for('merged_search', page=page+1, match=match_keyword, like=like_keyword, category=category_id) }}">下一页</a>
+                    <a href="{{ url_for('merged_search', page=page+1, match=match_keyword, like=like_keyword, category=category_id, file_type=file_type, file_name=file_name) }}">下一页</a>
                 </li>
                 {% endif %}
             </ul>
@@ -646,7 +661,7 @@
     {% endif %}
   </div>
   <footer>
-    <p>© 2026 文档本地存储检索系统1.2，Created by 恺乔</p>
+    <p>© 2026 文档本地存储检索系统1.2  Created by 恺乔</p>
   </footer>
 </body>
 </html>
