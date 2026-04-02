@@ -10,3 +10,8 @@ mammoth
 olefile
 docx2txt
 pywin32
+openpyxl
+xlrd
+paddleocr
+mysql-connector-python
+PyMuPDF

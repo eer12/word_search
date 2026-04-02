@@ -2,12 +2,15 @@ from flask import Flask, render_template, request, redirect, url_for, jsonify, s
 import os
 import sqlite3
 from datetime import datetime
-import PyPDF2
 from docx import Document
-import pytesseract
-from PIL import Image
-import pdf2image
-import tempfile
+
+# 导入配置
+from config import Config
+
+# 禁用 OneDNN 加速，避免算子冲突
+os.environ['FLAGS_use_mkldnn'] = '0'
+# 禁用 PIR 新架构，回退到稳定版执行器
+os.environ['FLAGS_enable_pir_api'] = '0'
 
 # 导入处理doc文件所需的模块
 try:
@@ -60,8 +63,7 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# 导入配置
-from config import Config
+
 
 try:
     import mysql.connector
@@ -169,39 +171,7 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
-def extract_text_from_pdf(filepath):
-    text = ''
-    # 尝试使用PyPDF2提取文本
-    with open(filepath, 'rb') as file:
-        reader = PyPDF2.PdfReader(file)
-        for page_num in range(len(reader.pages)):
-            page = reader.pages[page_num]
-            page_text = page.extract_text()
-            if page_text:
-                text += page_text
-    
-    # 如果没有提取到文本，尝试使用OCR
-    if not text.strip():
-        try:
-            # 检查tesseract是否可用
-            import subprocess
-            subprocess.run(['tesseract', '--version'], capture_output=True, check=True)
-            # 检查poppler是否可用
-            subprocess.run(['pdfinfo', '--version'], capture_output=True, check=True)
-            
-            # 将PDF转换为图像
-            images = pdf2image.convert_from_path(filepath)
-            for image in images:
-                # 使用OCR提取文本
-                ocr_text = pytesseract.image_to_string(image, lang='chi_sim')
-                text += ocr_text
-            print("OCR处理成功")
-        except subprocess.CalledProcessError:
-            print("OCR依赖未安装: tesseract或poppler不在系统PATH中")
-        except Exception as e:
-            print(f"OCR处理失败: {e}")
-    
-    return text
+
 
 def extract_text_from_docx(filepath):
     text = ''
@@ -261,6 +231,10 @@ from wps_extractor import extract_text_from_wps
 
 # 导入Excel文件预览模块
 from excel_previewer import convert_excel_to_html
+# 导入PDF OCR模块
+from pdf_ocr import ocr_pdf_file
+# 导入PDF处理模块
+from pdf_processor import extract_text_from_pdf
 
 def extract_text_from_txt(filepath):
     text = ''
@@ -492,6 +466,7 @@ def search():
 @app.route('/upload', methods=['POST'])
 @login_required
 def upload_file():
+    print(">>> [调试] 函数 upload_file 开始执行")  # <--- 加在这里
     try:
         # 获取分类列表
         categories_list = []
@@ -536,32 +511,17 @@ def upload_file():
             # 提取文件内容
             content = ''
             content_valid = True
+
+            print(f"=== 开始处理文件: {file.filename} ===")
             is_watermark_file = False
-            
+
+
             if file.filename.endswith('.pdf'):
-                content = extract_text_from_pdf(filepath)
-                # 检查是否只提取到了郑政钉水印信息
-                if content:
-                    # 检查是否包含水印特征
-                    watermark_features = [
-                        '禁止传输涉密文件'
-                    ]
-                    
-                    # 统计水印特征出现的次数
-                    watermark_count = 0
-                    for feature in watermark_features:
-                        watermark_count += content.count(feature)
-                    
-                    # 检查是否重复出现相同的水印信息
-                    lines = content.strip().split('\n')
-                    unique_lines = set(lines)
-                    
-                    # 如果水印特征出现次数较多，或者大部分行都是重复的，认为是水印
-                    if watermark_count >= 3 or (len(lines) > 3 and len(unique_lines) < len(lines) * 0.3):
-                        print(f"PDF文件只提取到水印信息: {content}")
-                        content_valid = False
-                        # 标记为水印文件
-                        is_watermark_file = True
+                print("处理PDF文件...")
+                # 使用PDF处理模块提取文本
+                print(f"调用extract_text_from_pdf: {filepath}")
+                content, is_watermark_file, content_valid = extract_text_from_pdf(filepath)
+                print(f"PDF处理结果 - 内容长度: {len(content) if content else 0}, 水印文件: {is_watermark_file}, 内容有效: {content_valid}")
             elif file.filename.endswith('.docx'):
                 content = extract_text_from_docx(filepath)
             elif file.filename.endswith('.doc'):
@@ -578,25 +538,6 @@ def upload_file():
                 print(f"Excel文件提取内容长度: {len(content)}")
                 print(f"Excel文件提取内容前100字符: {content[:100]}...")
             
-            # 检查文件内容是否有效
-            if not content or len(content.strip()) < 10:  # 内容至少要有10个字符
-                content_valid = False
-            
-            # 检查是否有乱码（简单检查：如果非ASCII字符过多或出现明显乱码特征）
-            if content_valid:
-                # 统计非ASCII字符比例
-                non_ascii_count = sum(1 for c in content if ord(c) > 127)
-                total_count = len(content)
-                if total_count > 0:
-                    non_ascii_ratio = non_ascii_count / total_count
-                    # 如果非ASCII字符比例过高，可能是乱码
-                    if non_ascii_ratio > 0.9:
-                        content_valid = False
-                
-                # 检查是否有连续的特殊字符，可能是乱码
-                import re
-                if re.search(r'[\x00-\x1f\x7f]{5,}', content):
-                    content_valid = False
             
             if not content_valid:
                 # 删除上传的文件
@@ -1351,6 +1292,26 @@ def update_document_categories():
         return jsonify({'success': False, 'error': str(e)})
     finally:
         conn.close()
+
+@app.route('/test-pdf-processing')
+@login_required
+def test_pdf_processing():
+    """
+    测试PDF处理功能和日志输出
+    """
+    test_pdf_path = 'c:\\Users\\ADMIN\\Documents\\trae_projects\\word_wearch\\test.pdf'
+    print(f"=== 测试PDF处理: {test_pdf_path} ===")
+    
+    from pdf_processor import extract_text_from_pdf
+    content, is_watermark_file, content_valid = extract_text_from_pdf(test_pdf_path)
+    
+    print(f"测试结果:")
+    print(f"内容长度: {len(content) if content else 0}")
+    print(f"是否为水印文件: {is_watermark_file}")
+    print(f"内容是否有效: {content_valid}")
+    print(f"提取的内容: {content}")
+    
+    return f"PDF处理测试完成，查看终端日志和日志文件以获取详细信息。"
 
 @app.route('/open-file-location/<int:file_id>')
 @admin_required
