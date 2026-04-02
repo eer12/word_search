@@ -22,7 +22,7 @@ class Config:
     ADMIN_PASSWORD = 'qk1230'  # 管理员密码
     
     # 允许的文件类型
-    ALLOWED_EXTENSIONS = {'docx', 'pdf', 'doc', 'wps', 'txt'}
+    ALLOWED_EXTENSIONS = {'docx', 'pdf', 'doc', 'wps', 'txt', 'xlsx', 'xls'}
     
     # 系统默认设置
     DEFAULT_CATEGORY_ID = 1

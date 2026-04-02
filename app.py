@@ -259,6 +259,9 @@ def extract_text_from_doc(filepath):
 # 从wps_extractor模块导入WPS文件文本提取函数
 from wps_extractor import extract_text_from_wps
 
+# 导入Excel文件预览模块
+from excel_previewer import convert_excel_to_html
+
 def extract_text_from_txt(filepath):
     text = ''
     try:
@@ -274,6 +277,81 @@ def extract_text_from_txt(filepath):
             print(f"处理TXT文件失败: {e}")
     except Exception as e:
         print(f"处理TXT文件失败: {e}")
+    return text
+
+def extract_text_from_excel(filepath):
+    text = ''
+    try:
+        if filepath.endswith('.xlsx'):
+            # 处理xlsx文件
+            import openpyxl
+            workbook = openpyxl.load_workbook(filepath)
+            for sheet_name in workbook.sheetnames:
+                sheet = workbook[sheet_name]
+                text += f"工作表: {sheet_name}\n"
+                # 获取工作表的最大行数和列数
+                max_row = sheet.max_row
+                max_col = sheet.max_column
+                for row in range(1, max_row + 1):
+                    row_cells = []
+                    for col in range(1, max_col + 1):
+                        cell = sheet.cell(row=row, column=col)
+                        cell_value = cell.value
+                        row_cells.append(str(cell_value) if cell_value is not None else '')
+                    # 检查是否有非空单元格
+                    if any(cell.strip() for cell in row_cells):
+                        row_text = '\t'.join(row_cells)
+                        text += row_text + '\n'
+                text += '\n'
+        elif filepath.endswith('.xls'):
+            # 处理xls文件
+            try:
+                import xlrd
+                workbook = xlrd.open_workbook(filepath)
+                for sheet_name in workbook.sheet_names():
+                    sheet = workbook.sheet_by_name(sheet_name)
+                    text += f"工作表: {sheet_name}\n"
+                    for row in range(sheet.nrows):
+                        row_cells = []
+                        for col in range(sheet.ncols):
+                            cell_value = sheet.cell_value(row, col)
+                            row_cells.append(str(cell_value) if cell_value is not None else '')
+                        # 检查是否有非空单元格
+                        if any(cell.strip() for cell in row_cells):
+                            row_text = '\t'.join(row_cells)
+                            text += row_text + '\n'
+                    text += '\n'
+            except ImportError:
+                print("xlrd库未安装，无法处理.xls文件")
+                # 尝试使用openpyxl作为备选
+                import openpyxl
+                workbook = openpyxl.load_workbook(filepath)
+                for sheet_name in workbook.sheetnames:
+                    sheet = workbook[sheet_name]
+                    text += f"工作表: {sheet_name}\n"
+                    # 获取工作表的最大行数和列数
+                    max_row = sheet.max_row
+                    max_col = sheet.max_column
+                    for row in range(1, max_row + 1):
+                        row_cells = []
+                        for col in range(1, max_col + 1):
+                            cell = sheet.cell(row=row, column=col)
+                            cell_value = cell.value
+                            row_cells.append(str(cell_value) if cell_value is not None else '')
+                        # 检查是否有非空单元格
+                        if any(cell.strip() for cell in row_cells):
+                            row_text = '\t'.join(row_cells)
+                            text += row_text + '\n'
+                    text += '\n'
+        print(f"Excel文件提取内容长度: {len(text)}")
+        print(f"Excel文件提取内容前200字符: {text[:200]}...")
+    except ImportError as e:
+        print(f"缺少必要的库: {e}")
+    except Exception as e:
+        print(f"处理Excel文件失败: {e}")
+        # 打印详细的错误信息
+        import traceback
+        traceback.print_exc()
     return text
 
 def extract_context(text, keyword, max_chars=200):
@@ -441,6 +519,8 @@ def upload_file():
                 file_type_folder = 'wps'
             elif file.filename.endswith('.txt'):
                 file_type_folder = 'txt'
+            elif file.filename.endswith('.xlsx') or file.filename.endswith('.xls'):
+                file_type_folder = 'excel'
             else:
                 file_type_folder = 'other'
             upload_folder = os.path.join(app.config['UPLOAD_FOLDER'], file_type_folder)
@@ -468,6 +548,10 @@ def upload_file():
                 print(f"WPS文件提取内容是否为路径: {'WPS文件:' in content}")
             elif file.filename.endswith('.txt'):
                 content = extract_text_from_txt(filepath)
+            elif file.filename.endswith('.xlsx') or file.filename.endswith('.xls'):
+                content = extract_text_from_excel(filepath)
+                print(f"Excel文件提取内容长度: {len(content)}")
+                print(f"Excel文件提取内容前100字符: {content[:100]}...")
             
             # 获取文件大小
             file_size = os.path.getsize(filepath)
@@ -1268,6 +1352,36 @@ def download_file(file_id):
     else:
         return '文件不存在'
 
+@app.route('/download-excel/<int:file_id>')
+@login_required
+def download_excel(file_id):
+    """
+    下载Excel文件（用于预览）
+    """
+    # 根据文件ID获取文件路径和文件名
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('SELECT file_path, file_name FROM documents WHERE id = ?', (file_id,))
+    result = c.fetchone()
+    conn.close()
+    
+    if result:
+        file_path, file_name = result
+        # 检查文件是否存在
+        import os
+        if os.path.exists(file_path):
+            # 使用Flask的send_file函数发送文件
+            from flask import send_file, jsonify
+            try:
+                return send_file(file_path, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            except Exception as e:
+                print(f"下载Excel文件失败: {e}")
+                return jsonify({'error': str(e)}), 500
+        else:
+            return jsonify({'error': '文件不存在'}), 404
+    else:
+        return jsonify({'error': '文件不存在'}), 404
+
 @app.route('/view-file/<int:file_id>')
 @login_required
 def view_file(file_id):
@@ -1312,7 +1426,7 @@ def view_file(file_id):
             else:
                 upload_time_str = upload_time.strftime('%Y-%m-%d %H:%M:%S')
             
-            # 尝试在后端将Word和WPS文件转换为HTML
+            # 尝试在后端将Word、WPS和Excel文件转换为HTML
             word_html = None
             if file_ext in ['doc', 'docx', 'wps']:
                 try:
@@ -1331,6 +1445,22 @@ def view_file(file_id):
                             text = extract_text_from_doc(file_path)
                         elif file_ext == 'docx':
                             text = extract_text_from_docx(file_path)
+                        if text:
+                            # 将文本转换为简单的HTML
+                            word_html = f"<pre>{text}</pre>"
+                            print(f"{file_ext.upper()}文件文本提取成功并转换为HTML")
+                    except Exception as e2:
+                        print(f"{file_ext.upper()}文件文本提取失败: {e2}")
+            elif file_ext in ['xlsx', 'xls']:
+                # 处理Excel文件
+                try:
+                    word_html = convert_excel_to_html(file_path, file_id)
+                    print(f"{file_ext.upper()}文件转换成功")
+                except Exception as e:
+                    print(f"{file_ext.upper()}文件转换失败: {e}")
+                    # 尝试使用文本提取作为备用
+                    try:
+                        text = extract_text_from_excel(file_path)
                         if text:
                             # 将文本转换为简单的HTML
                             word_html = f"<pre>{text}</pre>"
