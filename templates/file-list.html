@@ -97,7 +97,9 @@
       <a href="/search">搜索文档</a> | 
       <a href="/file-list">文件列表</a> | 
       <a href="/categories">分类管理</a> | 
+      {% if user_role == 'admin' %}
       <a href="/settings">系统设置</a>
+      {% endif %}
     </div>
     <h2>文件列表</h2>
     <div class="file-list">
@@ -127,6 +129,9 @@
                   <div class="action-buttons">
                     <a href="{{ file.filepath }}" class="btn btn-primary" target="_blank">查看</a>
                     <a href="{{ file.filepath }}" class="btn btn-secondary" download>下载</a>
+                    {% if user_role == 'admin' %}
+                    <a href="/open-file-location/{{ file.id }}" class="btn" style="background-color: #27ae60; color: white;">打开文件位置</a>
+                    {% endif %}
                     <a href="/files/delete/{{ file.id }}" class="btn" style="background-color: #ff4444; color: white;" onclick="return confirm('确定要删除此文件吗？');">删除</a>
                   </div>
                 </td>

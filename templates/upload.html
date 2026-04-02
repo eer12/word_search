@@ -169,7 +169,9 @@
         <a href="/upload">上传文档</a>
         <a href="/merged-search">文档检索</a>
         <a href="/categories">分类管理</a>
+        {% if user_role == 'admin' %}
         <a href="/settings">系统设置</a>
+        {% endif %}
       </div>
     </header>
     <h2>上传文档</h2>

@@ -18,7 +18,8 @@ class Config:
 
     # 密码验证配置
     ENABLE_AUTH = True  # 是否启用密码验证
-    AUTH_PASSWORD = 'qk1230'  # 默认密码
+    USER_PASSWORD = 'user123'  # 用户密码
+    ADMIN_PASSWORD = 'qk1230'  # 管理员密码
     
     # 允许的文件类型
     ALLOWED_EXTENSIONS = {'docx', 'pdf', 'doc', 'wps', 'txt'}

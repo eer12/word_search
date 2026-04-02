@@ -496,7 +496,9 @@
         <a href="/upload">上传文档</a>
         <a href="/merged-search">文档检索</a>
         <a href="/categories">分类管理</a>
+        {% if user_role == 'admin' %}
         <a href="/settings">系统设置</a>
+        {% endif %}
       </div>
     </header>
     <h2>文档检索</h2>
@@ -579,12 +581,16 @@
                     {% if file.file_exists %}
                     <a href="/view-file/{{ file.id }}" class="btn btn-primary" target="_blank">查看</a>
                     <a href="/download-file/{{ file.id }}" class="btn btn-secondary">下载</a>
+                    {% if user_role == 'admin' %}
                     <button class="btn btn-tertiary" onclick="openFileLocation({{ file.id }})">打开文件位置</button>
+                    {% endif %}
                     <a href="/files/delete/{{ file.id }}?from=search&match={{ match_keyword }}&like={{ like_keyword }}&category={{ category_id }}" class="btn" style="background-color: #ff4444; color: white;" onclick="return confirm('确定要删除此文件吗？');">删除</a>
                     {% else %}
                     <a href="#" class="btn btn-primary disabled" disabled>查看</a>
                     <a href="#" class="btn btn-secondary disabled" disabled>下载</a>
+                    {% if user_role == 'admin' %}
                     <button class="btn btn-tertiary disabled" disabled>打开文件位置</button>
+                    {% endif %}
                     <a href="#" class="btn disabled" style="background-color: #ff4444; color: white; cursor: not-allowed;" disabled>删除</a>
                     {% endif %}
                   </div>

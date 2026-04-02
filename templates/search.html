@@ -69,7 +69,9 @@
       <a href="/search">搜索文档</a> | 
       <a href="/file-list">文件列表</a> | 
       <a href="/categories">分类管理</a> | 
+      {% if user_role == 'admin' %}
       <a href="/settings">系统设置</a>
+      {% endif %}
     </div>
     <h2>搜索文档</h2>
     <form class="search-form" action="/search-results" method="get">

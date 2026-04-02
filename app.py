@@ -43,6 +43,23 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+# 管理员权限装饰器
+def admin_required(f):
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # 如果未启用验证，直接通过
+        if not Config.ENABLE_AUTH:
+            return f(*args, **kwargs)
+        # 检查session中是否有登录状态
+        if 'logged_in' not in session or not session['logged_in']:
+            return redirect(url_for('login'))
+        # 检查用户角色是否为管理员
+        if session.get('user_role') != 'admin':
+            return redirect(url_for('index'))
+        return f(*args, **kwargs)
+    return decorated_function
+
 # 导入配置
 from config import Config
 
@@ -340,11 +357,17 @@ def extract_context(text, keyword, max_chars=200):
 def login():
     if request.method == 'POST':
         password = request.form.get('password')
-        # 验证密码
-        if password == Config.AUTH_PASSWORD:
-            # 设置登录状态
+        role = request.form.get('role')
+        # 根据角色验证密码
+        if role == 'admin' and password == Config.ADMIN_PASSWORD:
+            # 管理员登录成功
             session['logged_in'] = True
-            # 重定向到首页
+            session['user_role'] = role
+            return redirect(url_for('index'))
+        elif role == 'user' and password == Config.USER_PASSWORD:
+            # 用户登录成功
+            session['logged_in'] = True
+            session['user_role'] = role
             return redirect(url_for('index'))
         else:
             # 密码错误
@@ -355,7 +378,7 @@ def login():
 @app.route('/')
 @login_required
 def index():
-    return render_template('index.html', message=None, message_type=None)
+    return render_template('index.html', message=None, message_type=None, user_role=session.get('user_role'))
 
 @app.route('/upload')
 @login_required
@@ -367,7 +390,7 @@ def upload_page():
     c.execute('SELECT id, name FROM categories ORDER BY id DESC')
     categories_list = c.fetchall()
     conn.close()
-    return render_template('upload.html', message=None, message_type=None, categories=categories_list)
+    return render_template('upload.html', message=None, message_type=None, categories=categories_list, user_role=session.get('user_role'))
 
 @app.route('/search')
 @login_required
@@ -379,7 +402,7 @@ def search():
     c.execute('SELECT id, name FROM categories')
     categories = c.fetchall()
     conn.close()
-    return render_template('search.html', categories=categories)
+    return render_template('search.html', categories=categories, user_role=session.get('user_role'))
 
 @app.route('/upload', methods=['POST'])
 @login_required
@@ -656,7 +679,7 @@ def categories():
     # 计算总页数
     total_pages = (total + per_page - 1) // per_page
     
-    return render_template('categories.html', categories=categories_list, page=page, total_pages=total_pages, per_page=per_page, search=search)
+    return render_template('categories.html', categories=categories_list, page=page, total_pages=total_pages, per_page=per_page, search=search, user_role=session.get('user_role'))
 
 @app.route('/categories/add', methods=['GET', 'POST'])
 @login_required
@@ -838,7 +861,7 @@ def file_list():
             'remark': remark
         })
     
-    return render_template('file-list.html', files=files_list, page=page, total_pages=total_pages, per_page=per_page)
+    return render_template('file-list.html', files=files_list, page=page, total_pages=total_pages, per_page=per_page, user_role=session.get('user_role'))
 
 # 系统设置路由
 @app.route('/merged-search')
@@ -1067,7 +1090,7 @@ def merged_search():
             'contexts': contexts
         })
     
-    return render_template('merged-search.html', files=files_list, page=page, total_pages=total_pages, per_page=per_page, categories=categories, match_keyword=match_keyword, like_keyword=like_keyword, category_ids=category_ids)
+    return render_template('merged-search.html', files=files_list, page=page, total_pages=total_pages, per_page=per_page, categories=categories, match_keyword=match_keyword, like_keyword=like_keyword, category_ids=category_ids, user_role=session.get('user_role'))
 
 @app.route('/get-document-categories/<int:file_id>')
 @login_required
@@ -1129,7 +1152,7 @@ def update_document_categories():
         conn.close()
 
 @app.route('/open-file-location/<int:file_id>')
-@login_required
+@admin_required
 def open_file_location(file_id):
     # 根据文件ID获取文件路径
     conn = sqlite3.connect(DB_PATH)
@@ -1311,7 +1334,7 @@ def get_file(file_id):
         return '文件不存在'
 
 @app.route('/settings', methods=['GET', 'POST'])
-@login_required
+@admin_required
 def settings():
     if request.method == 'POST':
         # 打印表单数据
