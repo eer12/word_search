@@ -1,0 +1,16 @@
+Flask
+PyPDF2
+python-docx
+pytesseract
+Pillow
+pdf2image
+waitress
+jieba
+mammoth
+olefile
+docx2txt
+openpyxl
+xlrd
+paddleocr
+mysql-connector-python
+PyMuPDF

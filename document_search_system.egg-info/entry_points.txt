@@ -1,0 +1,3 @@
+[console_scripts]
+document-search = document_search_system.start:main
+

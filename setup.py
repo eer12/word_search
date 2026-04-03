@@ -15,7 +15,7 @@ setup(
     data_files=[
         ('templates', [os.path.join('templates', f) for f in os.listdir('templates') if f.endswith('.html')]),
         ('views', [os.path.join('views', f) for f in os.listdir('views') if f.endswith('.ejs')]),
-        ('', ['requirements.txt', 'install.py', 'start.py', 'app.py', 'config.py', 'launch.py', 'launch_gui.py', 'run_production.py', 'wps_extractor.py', 'analyze_wps.py'])
+        ('', ['requirements.txt'])
     ],
     # 依赖项
     install_requires=[
@@ -30,12 +30,16 @@ setup(
         'mammoth',
         'olefile',
         'docx2txt',
-        'pywin32'
+        'openpyxl',
+        'xlrd',
+        'paddleocr',
+        'mysql-connector-python',
+        'PyMuPDF'
     ],
     # 入口点
     entry_points={
         'console_scripts': [
-            'document-search=start:main'
+            'document-search=document_search_system.start:main'
         ]
     }
 )
