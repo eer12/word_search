@@ -64,48 +64,49 @@ def extract_text_from_pdf(filepath):
             
             if text and len(text.strip()) > 10:
                 print(f"普通方法读取成功，提取内容长度: {len(text)}")
+                content = text
                 # 检查普通方法读取的数据是否为水印
                 is_watermark = check_watermark(text)
-                if is_watermark:
-                    print("普通方法读取到水印，尝试使用OCR")
-                    # 普通方法读取到水印，使用OCR
-                    ocr_content = ocr_pdf_file(filepath)
-                    if ocr_content and len(ocr_content.strip()) > 10:
-                        print(f"OCR识别成功，提取内容长度: {len(ocr_content)}")
-                        content = ocr_content
-                    else:
-                        print("OCR识别也失败")
-                        content_valid = False
-                else:
-                    content = text
+                # if is_watermark:
+                #     print("普通方法读取到水印，尝试使用OCR")
+                #     # 普通方法读取到水印，使用OCR
+                #     ocr_content = ocr_pdf_file(filepath)
+                #     if ocr_content and len(ocr_content.strip()) > 10:
+                #         print(f"OCR识别成功，提取内容长度: {len(ocr_content)}")
+                #         content = ocr_content
+                #     else:
+                #         print("OCR识别也失败")
+                #         content_valid = False
+                # else:
+                #     content = text
             else:
                 print("普通方法读取失败，尝试使用OCR")
                 # 2. 普通方法失败，使用OCR
-                try:
-                    ocr_content = ocr_pdf_file(filepath)
-                    if ocr_content and len(ocr_content.strip()) > 10:
-                        print(f"OCR识别成功，提取内容长度: {len(ocr_content)}")
-                        content = ocr_content
-                    else:
-                        print("OCR识别也失败")
-                        content_valid = False
-                except Exception as e:
-                    print(f"OCR处理失败: {e}")
-                    content_valid = False
+                # try:
+                #     ocr_content = ocr_pdf_file(filepath)
+                #     if ocr_content and len(ocr_content.strip()) > 10:
+                #         print(f"OCR识别成功，提取内容长度: {len(ocr_content)}")
+                #         content = ocr_content
+                #     else:
+                #         print("OCR识别也失败")
+                #         content_valid = False
+                # except Exception as e:
+                #     print(f"OCR处理失败: {e}")
+                #     content_valid = False
     except Exception as e:
         print(f"普通方法读取PDF失败: {e}")
-        # 普通方法失败，使用OCR
-        try:
-            ocr_content = ocr_pdf_file(filepath)
-            if ocr_content and len(ocr_content.strip()) > 10:
-                print(f"OCR识别成功，提取内容长度: {len(ocr_content)}")
-                content = ocr_content
-            else:
-                print("OCR识别也失败")
-                content_valid = False
-        except Exception as e:
-            print(f"OCR处理失败: {e}")
-            content_valid = False
+        # # 普通方法失败，使用OCR
+        # try:
+        #     ocr_content = ocr_pdf_file(filepath)
+        #     if ocr_content and len(ocr_content.strip()) > 10:
+        #         print(f"OCR识别成功，提取内容长度: {len(ocr_content)}")
+        #         content = ocr_content
+        #     else:
+        #         print("OCR识别也失败")
+        #         content_valid = False
+        # except Exception as e:
+        #     print(f"OCR处理失败: {e}")
+        #     content_valid = False
     
     # 3. 检查是否只提取到了水印信息
     if content:

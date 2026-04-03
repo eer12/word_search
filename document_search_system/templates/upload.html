@@ -190,7 +190,7 @@
       <div class="form-group">
         <label for="document">选择文档 (支持Word、PDF、WPS、TXT和Excel格式)</label>
         <input type="file" id="document" name="document" accept=".docx,.pdf,.doc,.wps,.txt,.xlsx,.xls" required>
-        <small class="form-text text-muted" style="color: #dc3545; font-weight: 500; margin-top: 5px;">⚠️注意：pdf扫描件文字识别因使用本地算力，需较长时间，请耐心等待，严禁上传涉密文件！</small>
+        <small class="form-text text-muted" style="color: #dc3545; font-weight: 500; margin-top: 5px;">⚠️注意：公网云版本2核2gb算力太小，无法加载开源pdf识别模型，不支持ocr识别pdf扫描件，严禁上传涉密文件！</small>
         
         <!-- 进度条 -->
         <div id="progress-container" style="display: none; margin-top: 15px;">
@@ -451,7 +451,7 @@
               currentProgress = 30;
               progressBar.style.width = currentProgress + '%';
               progressPercentage.textContent = currentProgress + '%';
-              progressMessage.textContent = '正在进行OCR识别，请耐心等待...';
+              progressMessage.textContent = '正在进行识别，请耐心等待...';
               
               // 启动进度条定时器
               progressTimer = setInterval(function() {
@@ -474,7 +474,7 @@
                   currentProgress = 99;
                   progressBar.style.width = currentProgress + '%';
                   progressPercentage.textContent = currentProgress + '%';
-                  progressMessage.textContent = '正在进行OCR识别，请耐心等待...';
+                  progressMessage.textContent = '正在进行识别，请耐心等待...';
                   
                   // 短暂延迟后显示100%
                   setTimeout(function() {
