@@ -105,11 +105,11 @@ def start_app():
             # 使用生产环境脚本启动
             log("使用生产环境服务器启动应用...")
             # 导入生产环境脚本并运行
-            import run_production
+            from . import run_production
         else:
             # 备用方案：直接运行Flask应用
             log("未找到生产环境脚本，使用Flask内置服务器启动...")
-            import app
+            from . import app
             # 修改配置为使用本地MySQL
             app.DB_CONFIG['host'] = 'localhost'
             app.DB_CONFIG['user'] = 'root'

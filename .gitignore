@@ -65,3 +65,5 @@ test_*.py
 *_test.py
 test/**
 tests/**
+document_search_system/backup/
+document_search_system/backup/

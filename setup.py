@@ -12,9 +12,11 @@ setup(
     author_email='',
     description='文档搜索系统',
     # 包含的文件
+    package_data={
+        'document_search_system': ['templates/*.html', 'views/*.ejs']
+    },
+    # 包含的文件
     data_files=[
-        ('templates', [os.path.join('templates', f) for f in os.listdir('templates') if f.endswith('.html')]),
-        ('views', [os.path.join('views', f) for f in os.listdir('views') if f.endswith('.ejs')]),
         ('', ['requirements.txt'])
     ],
     # 依赖项

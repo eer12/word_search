@@ -6,9 +6,9 @@ def start_app():
     print("正在启动文档搜索系统...")
     try:
         # 导入应用程序
-        import app
+        from . import app
         # 启动应用程序
-        app.app.run(debug=False, port=3000)
+        app.app.run(host='0.0.0.0', debug=False, port=3000)
     except Exception as e:
         print(f"启动失败: {e}")
         return False

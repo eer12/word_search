@@ -5,7 +5,7 @@ from datetime import datetime
 from docx import Document
 
 # 导入配置
-from config import Config
+from .config import Config
 
 # 禁用 OneDNN 加速，避免算子冲突
 os.environ['FLAGS_use_mkldnn'] = '0'
@@ -71,7 +71,13 @@ try:
 except ImportError:
     MYSQL_AVAILABLE = False
 
-app = Flask(__name__)
+# 获取当前文件所在目录
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# 模板文件夹就在当前目录下
+template_folder = os.path.join(current_dir, 'templates')
+
+app = Flask(__name__, template_folder=template_folder)
 # 创建Config实例
 config_instance = Config()
 # 加载配置
@@ -227,14 +233,14 @@ def extract_text_from_doc(filepath):
     return text
 
 # 从wps_extractor模块导入WPS文件文本提取函数
-from wps_extractor import extract_text_from_wps
+from .wps_extractor import extract_text_from_wps
 
 # 导入Excel文件预览模块
-from excel_previewer import convert_excel_to_html
+from .excel_previewer import convert_excel_to_html
 # 导入PDF OCR模块
-from pdf_ocr import ocr_pdf_file
+from .pdf_ocr import ocr_pdf_file
 # 导入PDF处理模块
-from pdf_processor import extract_text_from_pdf
+from .pdf_processor import extract_text_from_pdf
 
 def extract_text_from_txt(filepath):
     text = ''
@@ -1330,7 +1336,7 @@ def test_pdf_processing():
     test_pdf_path = 'c:\\Users\\ADMIN\\Documents\\trae_projects\\word_wearch\\test.pdf'
     print(f"=== 测试PDF处理: {test_pdf_path} ===")
     
-    from pdf_processor import extract_text_from_pdf
+    from .pdf_processor import extract_text_from_pdf
     content, is_watermark_file, content_valid = extract_text_from_pdf(test_pdf_path)
     
     print(f"测试结果:")
@@ -1680,4 +1686,4 @@ def batch_upload():
 if __name__ == '__main__':
     # 初始化数据库
     init_db()
-    app.run(debug=True, port=3000)
+    app.run(host='0.0.0.0', port=3000)
