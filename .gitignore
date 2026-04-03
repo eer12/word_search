@@ -59,3 +59,9 @@ setup.exe
 launch.exe
 dist_backup/**
 backup/**
+
+# 测试文件
+test_*.py
+*_test.py
+test/**
+tests/**

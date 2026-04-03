@@ -179,12 +179,30 @@
         {{ message }}
       </div>
     {% endif %}
-    <h2>上传文档</h2>
-    <form class="upload-form" action="/upload" method="post" enctype="multipart/form-data">
+    <!-- 选项卡 -->
+    <div class="tabs" style="display: flex; margin-bottom: 20px; border-bottom: 2px solid #ddd;">
+      <div class="tab active" data-tab="single" style="padding: 12px 24px; cursor: pointer; border-bottom: 3px solid #3498db; font-weight: 600; color: #3498db;">单个上传</div>
+      <div class="tab" data-tab="batch" style="padding: 12px 24px; cursor: pointer; border-bottom: 3px solid transparent; font-weight: 500; color: #666;">批量上传</div>
+    </div>
+    
+    <!-- 单个上传表单 -->
+    <form id="single-upload-form" class="upload-form" action="/upload" method="post" enctype="multipart/form-data">
       <div class="form-group">
         <label for="document">选择文档 (支持Word、PDF、WPS、TXT和Excel格式)</label>
         <input type="file" id="document" name="document" accept=".docx,.pdf,.doc,.wps,.txt,.xlsx,.xls" required>
-        <small class="form-text text-muted" style="color: #dc3545; font-weight: 500; margin-top: 5px;">⚠️ 注意：请不要上传带有郑政钉水印的PDF文件，系统无法识别此类文件内容</small>
+        <small class="form-text text-muted" style="color: #dc3545; font-weight: 500; margin-top: 5px;">⚠️注意：pdf扫描件文字识别因使用本地算力，需较长时间，请耐心等待，严禁上传涉密文件！</small>
+        
+        <!-- 进度条 -->
+        <div id="progress-container" style="display: none; margin-top: 15px;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+            <span>处理进度:</span>
+            <span id="progress-percentage">0%</span>
+          </div>
+          <div style="width: 100%; height: 10px; background-color: #f0f0f0; border-radius: 5px; overflow: hidden;">
+            <div id="progress-bar" style="height: 100%; width: 0%; background-color: #3498db; transition: width 0.3s ease;"></div>
+          </div>
+          <div id="progress-message" style="margin-top: 5px; font-size: 0.8rem; color: #666;">准备上传...</div>
+        </div>
       </div>
       <div class="form-group">
         <label>分类（可多选）</label>
@@ -200,10 +218,36 @@
         <small class="form-text text-muted">点击分类名称添加/移除标签</small>
       </div>
       <script>
-        document.addEventListener('DOMContentLoaded', function() {
-          const categoryOptions = document.querySelectorAll('.category-option');
-          const categoryTags = document.getElementById('category-tags');
-          const selectedCategoriesInput = document.getElementById('selected-categories');
+        // 颜色明暗调整函数
+        function shadeColor(color, percent) {
+          let R = parseInt(color.substring(1, 3), 16);
+          let G = parseInt(color.substring(3, 5), 16);
+          let B = parseInt(color.substring(5, 7), 16);
+
+          R = parseInt(R * (100 + percent) / 100);
+          G = parseInt(G * (100 + percent) / 100);
+          B = parseInt(B * (100 + percent) / 100);
+
+          R = (R < 255) ? R : 255;
+          G = (G < 255) ? G : 255;
+          B = (B < 255) ? B : 255;
+
+          R = Math.round(R);
+          G = Math.round(G);
+          B = Math.round(B);
+
+          const RR = ((R.toString(16).length === 1) ? "0" + R.toString(16) : R.toString(16));
+          const GG = ((G.toString(16).length === 1) ? "0" + G.toString(16) : G.toString(16));
+          const BB = ((B.toString(16).length === 1) ? "0" + B.toString(16) : B.toString(16));
+
+          return "#" + RR + GG + BB;
+        }
+        
+        // 初始化分类选择功能
+        function initCategorySelection(optionSelector, tagsContainerId, inputId, defaultCategoryId = '1') {
+          const categoryOptions = document.querySelectorAll(optionSelector);
+          const categoryTags = document.getElementById(tagsContainerId);
+          const selectedCategoriesInput = document.getElementById(inputId);
           
           // 存储选中的分类ID和对应的颜色
           const selectedCategories = new Set();
@@ -233,40 +277,44 @@
             '#EC4899'  // 蔷薇粉
           ];
           
-          // 初始化默认分类（如果需要）
-          selectedCategories.add('1'); // 默认分类ID为1
+          // 初始化默认分类
+          selectedCategories.add(defaultCategoryId);
           updateTags();
           
           // 分类选项点击事件
           categoryOptions.forEach(option => {
-            option.addEventListener('click', function() {
-              const categoryId = this.getAttribute('data-id');
-              
-              if (selectedCategories.has(categoryId)) {
-                // 移除分类
-                selectedCategories.delete(categoryId);
-                this.style.backgroundColor = '#f8f9fa';
-                this.style.borderColor = '#ddd';
-                this.style.color = '';
-              } else {
-                // 添加分类
-                selectedCategories.add(categoryId);
-                // 为分类分配颜色
-                if (!categoryColors.has(categoryId)) {
-                  const randomColor = tagColors[Math.floor(Math.random() * tagColors.length)];
-                  categoryColors.set(categoryId, randomColor);
-                }
-                const color = categoryColors.get(categoryId);
-                this.style.backgroundColor = color;
-                this.style.borderColor = shadeColor(color, -20);
-                this.style.color = 'white';
-              }
-              
-              updateTags();
-            });
+            // 先移除之前的事件监听器，避免重复绑定
+            option.removeEventListener('click', handleCategoryClick);
+            // 添加新的事件监听器
+            option.addEventListener('click', handleCategoryClick);
           });
           
-          // 更新标签和隐藏输入
+          function handleCategoryClick() {
+            const categoryId = this.getAttribute('data-id');
+            
+            if (selectedCategories.has(categoryId)) {
+              // 移除分类
+              selectedCategories.delete(categoryId);
+              this.style.backgroundColor = '#f8f9fa';
+              this.style.borderColor = '#ddd';
+              this.style.color = '';
+            } else {
+              // 添加分类
+              selectedCategories.add(categoryId);
+              // 为分类分配颜色
+              if (!categoryColors.has(categoryId)) {
+                const randomColor = tagColors[Math.floor(Math.random() * tagColors.length)];
+                categoryColors.set(categoryId, randomColor);
+              }
+              const color = categoryColors.get(categoryId);
+              this.style.backgroundColor = color;
+              this.style.borderColor = shadeColor(color, -20);
+              this.style.color = 'white';
+            }
+            
+            updateTags();
+          }
+          
           function updateTags() {
             // 清空现有标签
             categoryTags.innerHTML = '';
@@ -308,7 +356,7 @@
               removeBtn.textContent = '×';
               removeBtn.addEventListener('click', function() {
                 selectedCategories.delete(categoryId);
-                const option = document.querySelector(`.category-option[data-id="${categoryId}"]`);
+                const option = document.querySelector(`${optionSelector}[data-id="${categoryId}"]`);
                 option.style.backgroundColor = '#f8f9fa';
                 option.style.borderColor = '#ddd';
                 option.style.color = '';
@@ -322,31 +370,150 @@
             // 更新隐藏输入值
             selectedCategoriesInput.value = Array.from(selectedCategories).join(',');
           }
+        }
+        
+        // 初始化单个上传的分类选择
+        document.addEventListener('DOMContentLoaded', function() {
+          initCategorySelection('.category-option', 'category-tags', 'selected-categories');
+        });
+        
+        // 选项卡切换功能
+        document.addEventListener('DOMContentLoaded', function() {
+          const tabs = document.querySelectorAll('.tab');
+          const singleForm = document.getElementById('single-upload-form');
+          const batchForm = document.getElementById('batch-upload-form');
           
-          // 颜色明暗调整函数
-          function shadeColor(color, percent) {
-            let R = parseInt(color.substring(1, 3), 16);
-            let G = parseInt(color.substring(3, 5), 16);
-            let B = parseInt(color.substring(5, 7), 16);
-
-            R = parseInt(R * (100 + percent) / 100);
-            G = parseInt(G * (100 + percent) / 100);
-            B = parseInt(B * (100 + percent) / 100);
-
-            R = (R < 255) ? R : 255;
-            G = (G < 255) ? G : 255;
-            B = (B < 255) ? B : 255;
-
-            R = Math.round(R);
-            G = Math.round(G);
-            B = Math.round(B);
-
-            const RR = ((R.toString(16).length === 1) ? "0" + R.toString(16) : R.toString(16));
-            const GG = ((G.toString(16).length === 1) ? "0" + G.toString(16) : G.toString(16));
-            const BB = ((B.toString(16).length === 1) ? "0" + B.toString(16) : B.toString(16));
-
-            return "#" + RR + GG + BB;
-          }
+          // 选项卡切换事件
+          tabs.forEach(tab => {
+            tab.addEventListener('click', function() {
+              // 移除所有选项卡的active状态
+              tabs.forEach(t => {
+                t.classList.remove('active');
+                t.style.borderBottom = '3px solid transparent';
+                t.style.fontWeight = '500';
+                t.style.color = '#666';
+              });
+              
+              // 添加当前选项卡的active状态
+              this.classList.add('active');
+              this.style.borderBottom = '3px solid #3498db';
+              this.style.fontWeight = '600';
+              this.style.color = '#3498db';
+              
+              // 切换表单显示
+              const tabName = this.getAttribute('data-tab');
+              if (tabName === 'single') {
+                singleForm.style.display = 'block';
+                batchForm.style.display = 'none';
+              } else {
+                singleForm.style.display = 'none';
+                batchForm.style.display = 'block';
+                // 初始化批量上传的分类选择
+                initCategorySelection('.batch-category-option', 'batch-category-tags', 'batch-selected-categories');
+              }
+            });
+          });
+        });
+        
+        // 文件上传进度条功能 - 单个上传
+        document.addEventListener('DOMContentLoaded', function() {
+          const singleForm = document.getElementById('single-upload-form');
+          const progressContainer = document.getElementById('progress-container');
+          const progressBar = document.getElementById('progress-bar');
+          const progressPercentage = document.getElementById('progress-percentage');
+          const progressMessage = document.getElementById('progress-message');
+          
+          singleForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(singleForm);
+            const xhr = new XMLHttpRequest();
+            
+            // 显示进度条
+            progressContainer.style.display = 'block';
+            
+            let progressTimer = null;
+            let currentProgress = 0;
+            
+            // 监听上传进度
+            xhr.upload.addEventListener('progress', function(e) {
+              if (e.lengthComputable) {
+                currentProgress = Math.round((e.loaded / e.total) * 30); // 上传占30%
+                progressBar.style.width = currentProgress + '%';
+                progressPercentage.textContent = currentProgress + '%';
+                progressMessage.textContent = `上传中... ${currentProgress}%`;
+              }
+            });
+            
+            // 上传完成后，开始模拟OCR处理进度
+            xhr.upload.addEventListener('load', function() {
+              // 上传完成，开始OCR处理
+              currentProgress = 30;
+              progressBar.style.width = currentProgress + '%';
+              progressPercentage.textContent = currentProgress + '%';
+              progressMessage.textContent = '正在进行OCR识别，请耐心等待...';
+              
+              // 启动进度条定时器
+              progressTimer = setInterval(function() {
+                if (currentProgress < 99) {
+                  currentProgress++;
+                  progressBar.style.width = currentProgress + '%';
+                  progressPercentage.textContent = currentProgress + '%';
+                }
+              }, 500); // 每500毫秒增加1%，加快进度显示
+            });
+            
+            // 监听XHR完成
+            xhr.addEventListener('load', function() {
+              // 清除定时器
+              clearInterval(progressTimer);
+              
+              if (xhr.status === 200) {
+                // 确保进度条至少显示到99%
+                if (currentProgress < 99) {
+                  currentProgress = 99;
+                  progressBar.style.width = currentProgress + '%';
+                  progressPercentage.textContent = currentProgress + '%';
+                  progressMessage.textContent = '正在进行OCR识别，请耐心等待...';
+                  
+                  // 短暂延迟后显示100%
+                  setTimeout(function() {
+                    progressBar.style.width = '100%';
+                    progressPercentage.textContent = '100%';
+                    progressMessage.textContent = '处理完成，正在跳转...';
+                    
+                    // 显示结果
+                    setTimeout(function() {
+                      document.body.innerHTML = xhr.responseText;
+                    }, 1000);
+                  }, 1000);
+                } else {
+                  // 处理完成
+                  progressBar.style.width = '100%';
+                  progressPercentage.textContent = '100%';
+                  progressMessage.textContent = '处理完成，正在跳转...';
+                  
+                  // 显示结果
+                  setTimeout(function() {
+                    document.body.innerHTML = xhr.responseText;
+                  }, 1000);
+                }
+              } else {
+                // 处理失败
+                progressMessage.textContent = '处理失败，请重试';
+              }
+            });
+            
+            // 监听错误
+            xhr.addEventListener('error', function() {
+              clearInterval(progressTimer);
+              progressMessage.textContent = '上传失败，请重试';
+            });
+            
+            // 发送请求
+            xhr.open('POST', '/upload');
+            xhr.send(formData);
+          });
         });
       </script>
       <div class="form-group">
@@ -362,6 +529,41 @@
         <button type="submit">上传文档</button>
       </div>
     </form>
+    
+    <!-- 批量上传表单 -->
+    <form id="batch-upload-form" class="upload-form" action="/batch-upload" method="post" enctype="multipart/form-data" style="display: none;">
+        <div class="form-group">
+          <label for="batch-documents">选择多个文档 (支持Word、WPS、TXT和Excel格式，禁止上传PDF)</label>
+          <input type="file" id="batch-documents" name="documents" multiple accept=".docx,.doc,.wps,.txt,.xlsx,.xls" required>
+          <small class="form-text text-muted" style="color: #dc3545; font-weight: 500; margin-top: 5px;">⚠️注意：批量上传禁止上传PDF文件。PDF文件可能包含扫描件，OCR识别耗时较长，为保证批量上传效率，请使用"单个上传"功能上传PDF文件。</small>
+        </div>
+        <div class="form-group">
+          <label>分类（可多选，将应用于所有上传的文档）</label>
+          <div id="batch-category-tags" style="display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0;"></div>
+          <div style="border: 1px solid #ddd; border-radius: 6px; padding: 10px; min-height: 100px;">
+            {% for category in categories %}
+              <span class="batch-category-option" data-id="{{ category[0] }}" style="display: inline-block; padding: 6px 12px; margin: 5px; background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 20px; cursor: pointer; transition: all 0.3s ease;">
+                {{ category[1] }}
+              </span>
+            {% endfor %}
+          </div>
+          <input type="hidden" id="batch-selected-categories" name="category_id">
+          <small class="form-text text-muted">点击分类名称添加/移除标签</small>
+        </div>
+        <div class="form-group">
+          <label for="batch-issuing_unit">发文单位（将应用于所有上传的文档）</label>
+          <input type="text" id="batch-issuing_unit" name="issuing_unit" placeholder="请输入发文单位">
+        </div>
+        <div class="form-group">
+          <label for="batch-remark">备注（将应用于所有上传的文档）</label>
+          <textarea id="batch-remark" name="remark" placeholder="请输入备注信息"></textarea>
+        </div>
+        <div class="action-buttons">
+          <a href="/" class="btn btn-secondary">返回首页</a>
+          <button type="submit">批量上传</button>
+        </div>
+      </form>
+    </div>
   </div>
   <footer>
     <p>© 2026 文档本地存储检索系统1.2  Created by 恺乔</p>

@@ -463,6 +463,126 @@ def search():
     conn.close()
     return render_template('search.html', categories=categories, match=match, like=like, category_id=category_id, file_type=file_type, file_name=file_name, user_role=session.get('user_role'))
 
+def process_file(file, category_ids, issuing_unit, remark, cursor):
+    """
+    处理单个文件的上传和保存
+    
+    Args:
+        file: 上传的文件对象
+        category_ids: 分类ID列表
+        issuing_unit: 发文单位
+        remark: 备注
+        cursor: 数据库游标
+    
+    Returns:
+        tuple: (success, error_message)
+    """
+    try:
+        # 按文件类型创建子文件夹
+        if file.filename.endswith('.pdf'):
+            file_type_folder = 'pdf'
+        elif file.filename.endswith('.docx') or file.filename.endswith('.doc'):
+            file_type_folder = 'docx'
+        elif file.filename.endswith('.wps'):
+            file_type_folder = 'wps'
+        elif file.filename.endswith('.txt'):
+            file_type_folder = 'txt'
+        elif file.filename.endswith('.xlsx') or file.filename.endswith('.xls'):
+            file_type_folder = 'excel'
+        else:
+            file_type_folder = 'other'
+        upload_folder = os.path.join(app.config['UPLOAD_FOLDER'], file_type_folder)
+        
+        # 确保子文件夹存在
+        if not os.path.exists(upload_folder):
+            os.makedirs(upload_folder)
+        
+        filename = f"{datetime.now().timestamp()}_{file.filename}"
+        filepath = os.path.join(upload_folder, filename)
+        file.save(filepath)
+        
+        # 提取文件内容
+        content = ''
+        content_valid = True
+        is_watermark_file = False
+
+        print(f"=== 开始处理文件: {file.filename} ===")
+
+        if file.filename.endswith('.pdf'):
+            print("处理PDF文件...")
+            # 使用PDF处理模块提取文本
+            print(f"调用extract_text_from_pdf: {filepath}")
+            content, is_watermark_file, content_valid = extract_text_from_pdf(filepath)
+            print(f"PDF处理结果 - 内容长度: {len(content) if content else 0}, 水印文件: {is_watermark_file}, 内容有效: {content_valid}")
+        elif file.filename.endswith('.docx'):
+            content = extract_text_from_docx(filepath)
+        elif file.filename.endswith('.doc'):
+            content = extract_text_from_doc(filepath)
+        elif file.filename.endswith('.wps'):
+            content = extract_text_from_wps(filepath)
+            print(f"WPS文件提取内容长度: {len(content)}")
+            print(f"WPS文件提取内容前100字符: {content[:100]}...")
+            print(f"WPS文件提取内容是否为路径: {'WPS文件:' in content}")
+        elif file.filename.endswith('.txt'):
+            content = extract_text_from_txt(filepath)
+        elif file.filename.endswith('.xlsx') or file.filename.endswith('.xls'):
+            content = extract_text_from_excel(filepath)
+            print(f"Excel文件提取内容长度: {len(content)}")
+            print(f"Excel文件提取内容前100字符: {content[:100]}...")
+        
+        if not content_valid or (not content or len(content.strip()) < 10):
+            # 删除上传的文件
+            if os.path.exists(filepath):
+                os.remove(filepath)
+            # 根据是否为水印文件返回不同的错误消息
+            if is_watermark_file:
+                return False, '不支持郑政钉或带水印pdf文件'
+            else:
+                return False, '无法读取文件内容或文件内容无效'
+        
+        # 获取文件大小
+        file_size = os.path.getsize(filepath)
+        
+        # 插入文档信息到数据库
+        cursor.execute(
+            'INSERT INTO documents (file_name, file_path, file_size, issuing_unit, remark) VALUES (?, ?, ?, ?, ?)',
+            (file.filename, filepath, file_size, issuing_unit, remark)
+        )
+        document_id = cursor.lastrowid
+        
+        # 插入文档-分类关联
+        for category_id in category_ids:
+            cursor.execute(
+                'INSERT INTO document_categories (document_id, category_id) VALUES (?, ?)',
+                (document_id, category_id)
+            )
+        
+        # 使用jieba分词后插入到全文检索表
+        try:
+            import jieba
+            # 使用jieba进行分词
+            seg_list = jieba.cut(content)
+            # 将分词结果用空格连接
+            seg_content = ' '.join(seg_list)
+            cursor.execute(
+                'INSERT INTO file_content_fts (content, file_id) VALUES (?, ?)',
+                (seg_content, document_id)
+            )
+        except ImportError:
+            # 如果jieba未安装，直接使用原内容
+            cursor.execute(
+                'INSERT INTO file_content_fts (content, file_id) VALUES (?, ?)',
+                (content, document_id)
+            )
+        
+        return True, None
+    except Exception as e:
+        print(f"处理文件 {file.filename} 失败: {e}")
+        # 删除上传的文件
+        if 'filepath' in locals() and os.path.exists(filepath):
+            os.remove(filepath)
+        return False, str(e)
+
 @app.route('/upload', methods=['POST'])
 @login_required
 def upload_file():
@@ -485,74 +605,6 @@ def upload_file():
             return render_template('upload.html', message='未选择文件', message_type='error', categories=categories_list)
         
         if file and allowed_file(file.filename):
-            # 按文件类型创建子文件夹
-            if file.filename.endswith('.pdf'):
-                file_type_folder = 'pdf'
-            elif file.filename.endswith('.docx') or file.filename.endswith('.doc'):
-                file_type_folder = 'docx'
-            elif file.filename.endswith('.wps'):
-                file_type_folder = 'wps'
-            elif file.filename.endswith('.txt'):
-                file_type_folder = 'txt'
-            elif file.filename.endswith('.xlsx') or file.filename.endswith('.xls'):
-                file_type_folder = 'excel'
-            else:
-                file_type_folder = 'other'
-            upload_folder = os.path.join(app.config['UPLOAD_FOLDER'], file_type_folder)
-            
-            # 确保子文件夹存在
-            if not os.path.exists(upload_folder):
-                os.makedirs(upload_folder)
-            
-            filename = f"{datetime.now().timestamp()}_{file.filename}"
-            filepath = os.path.join(upload_folder, filename)
-            file.save(filepath)
-            
-            # 提取文件内容
-            content = ''
-            content_valid = True
-
-            print(f"=== 开始处理文件: {file.filename} ===")
-            is_watermark_file = False
-
-
-            if file.filename.endswith('.pdf'):
-                print("处理PDF文件...")
-                # 使用PDF处理模块提取文本
-                print(f"调用extract_text_from_pdf: {filepath}")
-                content, is_watermark_file, content_valid = extract_text_from_pdf(filepath)
-                print(f"PDF处理结果 - 内容长度: {len(content) if content else 0}, 水印文件: {is_watermark_file}, 内容有效: {content_valid}")
-            elif file.filename.endswith('.docx'):
-                content = extract_text_from_docx(filepath)
-            elif file.filename.endswith('.doc'):
-                content = extract_text_from_doc(filepath)
-            elif file.filename.endswith('.wps'):
-                content = extract_text_from_wps(filepath)
-                print(f"WPS文件提取内容长度: {len(content)}")
-                print(f"WPS文件提取内容前100字符: {content[:100]}...")
-                print(f"WPS文件提取内容是否为路径: {'WPS文件:' in content}")
-            elif file.filename.endswith('.txt'):
-                content = extract_text_from_txt(filepath)
-            elif file.filename.endswith('.xlsx') or file.filename.endswith('.xls'):
-                content = extract_text_from_excel(filepath)
-                print(f"Excel文件提取内容长度: {len(content)}")
-                print(f"Excel文件提取内容前100字符: {content[:100]}...")
-            
-            
-            if not content_valid:
-                # 删除上传的文件
-                if os.path.exists(filepath):
-                    os.remove(filepath)
-                # 根据是否为水印文件显示不同的错误消息
-                if is_watermark_file:
-                    error_message = '上传失败：不支持郑政钉或带水印pdf文件'
-                else:
-                    error_message = '上传失败：无法读取文件内容或文件内容无效'
-                return render_template('upload.html', message=error_message, message_type='error', categories=categories_list)
-            
-            # 获取文件大小
-            file_size = os.path.getsize(filepath)
-            
             # 获取表单字段
             category_ids_str = request.form.get('category_id', '')
             # 解析逗号分隔的分类ID
@@ -564,45 +616,21 @@ def upload_file():
             issuing_unit = request.form.get('issuing_unit', '')
             remark = request.form.get('remark', '')
             
-            # 插入文档信息到数据库
-            # 使用SQLite
+            # 连接数据库
             conn = sqlite3.connect(DB_PATH)
             c = conn.cursor()
-            c.execute(
-                'INSERT INTO documents (file_name, file_path, file_size, issuing_unit, remark) VALUES (?, ?, ?, ?, ?)',
-                (file.filename, filepath, file_size, issuing_unit, remark)
-            )
-            document_id = c.lastrowid
             
-            # 插入文档-分类关联
-            for category_id in category_ids:
-                c.execute(
-                    'INSERT INTO document_categories (document_id, category_id) VALUES (?, ?)',
-                    (document_id, category_id)
-                )
+            # 处理文件
+            success, error_message = process_file(file, category_ids, issuing_unit, remark, c)
             
-            # 使用jieba分词后插入到全文检索表
-            try:
-                import jieba
-                # 使用jieba进行分词
-                seg_list = jieba.cut(content)
-                # 将分词结果用空格连接
-                seg_content = ' '.join(seg_list)
-                c.execute(
-                    'INSERT INTO file_content_fts (content, file_id) VALUES (?, ?)',
-                    (seg_content, document_id)
-                )
-            except ImportError:
-                # 如果jieba未安装，直接使用原内容
-                c.execute(
-                    'INSERT INTO file_content_fts (content, file_id) VALUES (?, ?)',
-                    (content, document_id)
-                )
-            
-            conn.commit()
-            conn.close()
-            
-            return render_template('upload.html', message='文件上传成功', message_type='success', categories=categories_list)
+            if success:
+                conn.commit()
+                conn.close()
+                return render_template('upload.html', message='文件上传成功', message_type='success', categories=categories_list)
+            else:
+                conn.rollback()
+                conn.close()
+                return render_template('upload.html', message=f'上传失败：{error_message}', message_type='error', categories=categories_list)
         else:
             return render_template('upload.html', message='无效的文件类型。仅支持.docx、.doc、.pdf、.wps和.txt格式。', message_type='error', categories=categories_list)
     except Exception as e:
@@ -1568,6 +1596,86 @@ def settings():
         return render_template('settings.html', upload_folder=upload_folder, message='设置保存成功', message_type='success')
     
     return render_template('settings.html', upload_folder=app.config['UPLOAD_FOLDER'])
+
+@app.route('/batch-upload', methods=['POST'])
+@login_required
+def batch_upload():
+    print(">>> [调试] 函数 batch_upload 开始执行")
+    try:
+        # 获取分类列表
+        categories_list = []
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute('SELECT id, name FROM categories ORDER BY id DESC')
+        categories_list = c.fetchall()
+        conn.close()
+        
+        if 'documents' not in request.files:
+            return render_template('upload.html', message='未上传文件', message_type='error', categories=categories_list)
+        
+        files = request.files.getlist('documents')
+        
+        if not files or all(file.filename == '' for file in files):
+            return render_template('upload.html', message='未选择文件', message_type='error', categories=categories_list)
+        
+        # 检查是否有PDF文件
+        for file in files:
+            if file.filename.endswith('.pdf'):
+                return render_template('upload.html', message='批量上传禁止上传PDF文件', message_type='error', categories=categories_list)
+        
+        # 处理上传的文件
+        success_count = 0
+        error_files = []
+        
+        # 获取表单字段
+        category_ids_str = request.form.get('category_id', '')
+        # 解析逗号分隔的分类ID
+        if category_ids_str:
+            category_ids = category_ids_str.split(',')
+        else:
+            # 如果没有选择分类，使用默认分类ID 1
+            category_ids = ['1']
+        
+        issuing_unit = request.form.get('issuing_unit', '')
+        remark = request.form.get('remark', '')
+        
+        # 连接数据库
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        
+        for file in files:
+            if file and allowed_file(file.filename) and not file.filename.endswith('.pdf'):
+                # 使用process_file函数处理文件
+                success, error_message = process_file(file, category_ids, issuing_unit, remark, c)
+                if success:
+                    success_count += 1
+                else:
+                    error_files.append(f"{file.filename} ({error_message})")
+            else:
+                error_files.append(file.filename)
+        
+        # 提交事务
+        conn.commit()
+        conn.close()
+        
+        # 显示结果
+        if success_count > 0:
+            message = f'成功上传 {success_count} 个文件'
+            if error_files:
+                message += f'，{len(error_files)} 个文件上传失败'
+            return render_template('upload.html', message=message, message_type='success', categories=categories_list)
+        else:
+            return render_template('upload.html', message='所有文件上传失败', message_type='error', categories=categories_list)
+    except Exception as e:
+        print(f"批量上传失败: {e}")
+        # 获取分类列表
+        categories_list = []
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute('SELECT id, name FROM categories ORDER BY id DESC')
+        categories_list = c.fetchall()
+        conn.close()
+        return render_template('upload.html', message=f'批量上传失败: {str(e)}', message_type='error', categories=categories_list)
 
 if __name__ == '__main__':
     # 初始化数据库
