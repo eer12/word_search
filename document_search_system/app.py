@@ -12,13 +12,7 @@ os.environ['FLAGS_use_mkldnn'] = '0'
 # 禁用 PIR 新架构，回退到稳定版执行器
 os.environ['FLAGS_enable_pir_api'] = '0'
 
-# 导入处理doc文件所需的模块
-try:
-    import pythoncom
-    import win32com.client
-    PYWIN32_AVAILABLE = True
-except ImportError:
-    PYWIN32_AVAILABLE = False
+# 移除了只能在Windows上运行的pywin32库依赖
 
 try:
     import docx2txt
@@ -199,24 +193,33 @@ def extract_text_from_doc(filepath):
             raise ImportError("docx2txt库未安装")
     except Exception as e:
         print(f"使用docx2txt处理DOC文件失败: {e}")
-        # 如果docx2txt失败，尝试使用pywin32（仅Windows）
+        # 尝试使用LibreOffice转换为HTML，然后提取文本
         try:
-            if PYWIN32_AVAILABLE:
-                # 初始化COM库
-                pythoncom.CoInitialize()
-                word = win32com.client.Dispatch('Word.Application')
-                word.Visible = False
-                doc = word.Documents.Open(filepath)
-                text = doc.Content.Text
-                doc.Close()
-                word.Quit()
-                # 释放COM资源
-                pythoncom.CoUninitialize()
+            html_content = convert_with_libreoffice(filepath, 'html')
+            if html_content:
+                # 从HTML中提取纯文本
+                from bs4 import BeautifulSoup
+                soup = BeautifulSoup(html_content, 'html.parser')
+                text = soup.get_text(separator='\n', strip=True)
+                print("使用LibreOffice成功提取DOC文件文本")
             else:
-                raise ImportError("pywin32库未安装")
+                # 如果LibreOffice失败，尝试使用olefile作为最后手段
+                try:
+                    if OLEFILE_AVAILABLE:
+                        if olefile.isOleFile(filepath):
+                            ole = olefile.OleFileIO(filepath)
+                            # 尝试从WordDocument流中提取文本
+                            if 'WordDocument' in ole.listdir():
+                                # 这里只是简单的实现，实际可能需要更复杂的解析
+                                text = "[DOC文件内容]"
+                                print("使用olefile成功打开DOC文件")
+                    else:
+                        raise ImportError("olefile库未安装")
+                except Exception as e3:
+                    print(f"使用olefile处理DOC文件失败: {e3}")
         except Exception as e2:
-            print(f"使用pywin32处理DOC文件失败: {e2}")
-            # 如果pywin32也失败，尝试使用olefile作为最后手段
+            print(f"使用LibreOffice处理DOC文件失败: {e2}")
+            # 尝试使用olefile作为最后手段
             try:
                 if OLEFILE_AVAILABLE:
                     if olefile.isOleFile(filepath):
@@ -333,6 +336,74 @@ def extract_text_from_excel(filepath):
         import traceback
         traceback.print_exc()
     return text
+
+def convert_with_libreoffice(filepath, output_format='html'):
+    """
+    使用LibreOffice将文件转换为指定格式
+    
+    Args:
+        filepath: 输入文件路径
+        output_format: 输出格式，默认为html
+        
+    Returns:
+        转换后的文件路径，如果转换失败则返回None
+    """
+    import os
+    import subprocess
+    import tempfile
+    
+    try:
+        # 创建临时输出目录
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # 构建输出文件路径
+            base_name = os.path.basename(filepath)
+            name_without_ext = os.path.splitext(base_name)[0]
+            output_file = os.path.join(temp_dir, f"{name_without_ext}.{output_format}")
+            
+            # 构建LibreOffice命令
+            # 使用无头模式运行LibreOffice
+            if os.name == 'nt':
+                # Windows系统
+                libreoffice_cmd = 'soffice'
+            else:
+                # Linux系统
+                libreoffice_cmd = 'libreoffice'
+            
+            cmd = [
+                libreoffice_cmd,
+                '--headless',
+                '--convert-to',
+                output_format,
+                '--outdir',
+                temp_dir,
+                filepath
+            ]
+            
+            print(f"执行LibreOffice转换命令: {' '.join(cmd)}")
+            
+            # 执行命令
+            result = subprocess.run(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            
+            print(f"LibreOffice转换输出: {result.stdout}")
+            print(f"LibreOffice转换错误: {result.stderr}")
+            
+            # 检查转换是否成功
+            if result.returncode == 0 and os.path.exists(output_file):
+                # 读取转换后的文件内容
+                with open(output_file, 'r', encoding='utf-8', errors='ignore') as f:
+                    content = f.read()
+                return content
+            else:
+                print(f"LibreOffice转换失败，返回码: {result.returncode}")
+                return None
+    except Exception as e:
+        print(f"使用LibreOffice转换文件失败: {e}")
+        return None
 
 def extract_context(text, keyword, max_chars=200):
     # 提取关键词前后的上下文，直到逗号或句号为止
@@ -1480,13 +1551,28 @@ def view_file(file_id):
             word_html = None
             if file_ext in ['doc', 'docx', 'wps']:
                 try:
-                    import mammoth
-                    with open(file_path, 'rb') as f:
-                        result = mammoth.convert_to_html(f)
-                        word_html = result.value
-                    print(f"{file_ext.upper()}文件转换成功")
-                except Exception as e:
-                    print(f"{file_ext.upper()}文件转换失败: {e}")
+                    # 直接使用LibreOffice转换
+                    libreoffice_html = convert_with_libreoffice(file_path, 'html')
+                    if libreoffice_html:
+                        word_html = libreoffice_html
+                        print(f"使用LibreOffice成功转换{file_ext.upper()}文件为HTML")
+                    else:
+                        # 尝试使用文本提取作为备用
+                        try:
+                            if file_ext == 'wps':
+                                text = extract_text_from_wps(file_path)
+                            elif file_ext == 'doc':
+                                text = extract_text_from_doc(file_path)
+                            elif file_ext == 'docx':
+                                text = extract_text_from_docx(file_path)
+                            if text:
+                                # 将文本转换为简单的HTML
+                                word_html = f"<pre>{text}</pre>"
+                                print(f"{file_ext.upper()}文件文本提取成功并转换为HTML")
+                        except Exception as e2:
+                            print(f"{file_ext.upper()}文件文本提取失败: {e2}")
+                except Exception as e3:
+                    print(f"使用LibreOffice转换{file_ext.upper()}文件失败: {e3}")
                     # 尝试使用文本提取作为备用
                     try:
                         if file_ext == 'wps':

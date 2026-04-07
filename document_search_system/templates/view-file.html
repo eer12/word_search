@@ -134,6 +134,81 @@
     .download-btn:hover {
       background-color: #45a049;
     }
+    
+    /* 响应式样式 */
+    @media (max-width: 768px) {
+      .header {
+        padding: 15px;
+      }
+      h1 {
+        font-size: 18px;
+      }
+      .nav {
+        margin-top: 15px;
+      }
+      .nav a {
+        margin: 0 5px;
+        font-size: 14px;
+      }
+      .content {
+        flex-direction: column;
+      }
+      .sidebar {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid #ddd;
+        padding: 15px;
+        max-height: 200px;
+      }
+      .sidebar h2 {
+        font-size: 16px;
+      }
+      .file-info p {
+        margin: 8px 0;
+        font-size: 14px;
+      }
+      .file-info strong {
+        width: 70px;
+      }
+      .back-link {
+        margin-top: 20px;
+        padding: 8px;
+        font-size: 14px;
+      }
+      .preview-area {
+        flex: 1;
+      }
+      .preview-container {
+        width: 95%;
+      }
+      .word-content {
+        padding: 15px;
+        font-size: 14px;
+      }
+      .download-option h3 {
+        font-size: 16px;
+      }
+      .download-option p {
+        font-size: 14px;
+        margin-bottom: 20px;
+      }
+      .download-btn {
+        padding: 8px 25px;
+        font-size: 14px;
+      }
+    }
+    
+    /* 移动端触摸滚动优化 */
+    .sidebar {
+      -webkit-overflow-scrolling: touch;
+    }
+    .word-content {
+      -webkit-overflow-scrolling: touch;
+      scroll-behavior: smooth;
+    }
+    .file-viewer {
+      -webkit-overflow-scrolling: touch;
+    }
   </style>
 
 </head>

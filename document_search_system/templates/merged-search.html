@@ -115,6 +115,7 @@
       padding: 20px;
       border-radius: 10px;
       box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      overflow-x: auto;
     }
     table {
       width: 100%;
@@ -129,6 +130,7 @@
       background-color: #f8f9fa;
       font-weight: 600;
       color: #2c3e50;
+      white-space: nowrap;
     }
     tr:hover {
       background-color: #f8f9fa;
@@ -144,6 +146,7 @@
     .action-buttons {
       display: flex;
       gap: 8px;
+      flex-wrap: wrap;
     }
     .btn {
       padding: 6px 12px;
@@ -192,6 +195,8 @@
       list-style: none;
       padding: 0;
       display: inline-flex;
+      flex-wrap: wrap;
+      justify-content: center;
     }
     .pagination nav ul li {
       margin: 0 5px;
@@ -309,6 +314,116 @@
     footer p {
       color: #666;
       font-size: 0.8rem;
+    }
+    
+    /* 响应式样式 */
+    @media (max-width: 768px) {
+      .container {
+        max-width: 100%;
+        padding: 15px;
+      }
+      header {
+        margin-bottom: 20px;
+      }
+      h1 {
+        font-size: 1.5rem;
+        margin-bottom: 10px;
+      }
+      h2 {
+        font-size: 1.2rem;
+        margin-bottom: 15px;
+      }
+      .nav {
+        margin-bottom: 20px;
+      }
+      .nav a {
+        margin: 0 8px;
+        font-size: 0.9rem;
+      }
+      .search-form {
+        padding: 15px;
+        gap: 15px;
+        margin-bottom: 20px;
+      }
+      .form-group {
+        min-width: 100%;
+        gap: 6px;
+      }
+      label {
+        font-size: 0.9rem;
+      }
+      input[type="text"],
+      select {
+        padding: 8px;
+        font-size: 0.9rem;
+      }
+      button {
+        padding: 10px 20px;
+        font-size: 0.9rem;
+        width: 100%;
+      }
+      .file-list {
+        padding: 15px;
+        margin-top: 15px;
+      }
+      table {
+        font-size: 0.9rem;
+      }
+      th, td {
+        padding: 8px;
+        font-size: 0.85rem;
+      }
+      .action-buttons {
+        flex-direction: column;
+        gap: 5px;
+      }
+      .btn {
+        padding: 5px 10px;
+        font-size: 0.8rem;
+        width: 100%;
+        text-align: center;
+      }
+      .no-files {
+        padding: 30px;
+      }
+      .pagination {
+        margin-top: 20px;
+      }
+      .pagination nav ul li {
+        margin: 2px;
+      }
+      .pagination nav ul li a {
+        padding: 6px 10px;
+        font-size: 0.85rem;
+      }
+      .context-section {
+        padding: 10px;
+      }
+      .context-title {
+        font-size: 0.9rem;
+      }
+      .context-item {
+        font-size: 0.85rem;
+      }
+      .modal-content {
+        width: 95%;
+        margin: 20% auto;
+        padding: 15px;
+      }
+      .category-options {
+        gap: 8px;
+      }
+      .category-option {
+        padding: 6px 12px;
+        font-size: 0.85rem;
+      }
+      footer {
+        padding: 10px;
+        margin-top: 20px;
+      }
+      footer p {
+        font-size: 0.7rem;
+      }
     }
   </style>
   <script>
