@@ -1,7 +1,7 @@
 import os
 import sys
 # 运行命令
-# python setup.py bdist_wheel
+# python -m document_search_system.start
 # 启动应用程序
 def start_app():
     print("正在启动文档搜索系统...")

@@ -1,5 +1,5 @@
 import PyPDF2
-from .pdf_ocr import ocr_pdf_file
+# from .pdf_ocr import ocr_pdf_file
 
 def check_watermark(text):
     """

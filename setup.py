@@ -34,7 +34,7 @@ setup(
         'docx2txt',
         'openpyxl',
         'xlrd',
-        'paddleocr',
+        # 'paddleocr',
         'mysql-connector-python',
         'PyMuPDF'
     ],

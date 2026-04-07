@@ -17,13 +17,13 @@ document_search_system/install.py
 document_search_system/launch.py
 document_search_system/launch_gui.py
 document_search_system/package.py
-document_search_system/pdf_ocr.py
 document_search_system/pdf_processor.py
 document_search_system/query_db.py
 document_search_system/recreate_db.py
 document_search_system/run_production.py
 document_search_system/start.py
 document_search_system/stop_service.py
+document_search_system/utils.py
 document_search_system/wps_extractor.py
 document_search_system.egg-info/PKG-INFO
 document_search_system.egg-info/SOURCES.txt

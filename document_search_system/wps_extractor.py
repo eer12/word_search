@@ -29,11 +29,7 @@ try:
 except ImportError:
     MAMMOTH_AVAILABLE = False
 
-try:
-    import olefile
-    OLEFILE_AVAILABLE = True
-except ImportError:
-    OLEFILE_AVAILABLE = False
+
 
 try:
     import win32com.client
@@ -51,11 +47,8 @@ def extract_text_from_wps(filepath):
     1. python-docx（新格式WPS文件）
     2. docx2txt（新格式WPS文件）
     3. mammoth（新格式WPS文件）
-    4. olefile（旧格式OLE文件）
-    5. antiword（外部工具）
-    6. catdoc（外部工具）
-    7. pandoc（外部工具）
-    8. Windows COM接口（最可靠的方法）
+    4. LibreOffice（跨平台，支持新旧格式）
+    5. Windows COM接口（最可靠的方法）
     
     Args:
         filepath: WPS文件路径
@@ -110,184 +103,34 @@ def extract_text_from_wps(filepath):
     else:
         print("方法3: mammoth库未安装")
     
-    # 方法4: 处理OLE格式的WPS文件（旧格式）
-    if OLEFILE_AVAILABLE:
-        text = _extract_from_ole(filepath)
-        if text:
-            return text
-    else:
-        print("方法4: olefile库未安装")
-    
-    # 方法5: 尝试使用antiword（外部工具）
+    # 方法4: 尝试使用LibreOffice转换为HTML，然后提取文本
     try:
-        result = subprocess.run(['antiword', filepath], capture_output=True, text=True, timeout=10)
-        if result.stdout.strip() and len(result.stdout.strip()) > 50:
-            print(f"方法5成功: 使用antiword提取文本，长度: {len(result.stdout)}")
-            return result.stdout
+        # 导入LibreOffice转换函数
+        from .utils import convert_with_libreoffice, extract_text_from_html
+        html_content = convert_with_libreoffice(filepath, 'html')
+        if html_content:
+            # 从HTML中提取纯文本
+            text = extract_text_from_html(html_content)
+            if text and len(text.strip()) > 50:
+                print(f"方法4成功: 使用LibreOffice提取文本，长度: {len(text)}")
+                return text
     except Exception as e:
-        print(f"方法5失败: antiword无法使用: {e}")
-    
-    # 方法6: 尝试使用catdoc（外部工具）
-    try:
-        result = subprocess.run(['catdoc', filepath], capture_output=True, text=True, timeout=10)
-        if result.stdout.strip() and len(result.stdout.strip()) > 50:
-            print(f"方法6成功: 使用catdoc提取文本，长度: {len(result.stdout)}")
-            return result.stdout
-    except Exception as e:
-        print(f"方法6失败: catdoc无法使用: {e}")
-    
-    # 方法7: 尝试使用pandoc（外部工具）
-    try:
-        with tempfile.NamedTemporaryFile(suffix='.txt', delete=False) as temp:
-            temp_name = temp.name
-        result = subprocess.run(['pandoc', filepath, '-o', temp_name], capture_output=True, text=True, timeout=10)
-        with open(temp_name, 'r', encoding='utf-8', errors='ignore') as f:
-            text = f.read()
-        os.unlink(temp_name)
-        if len(text.strip()) > 50:
-            print(f"方法7成功: 使用pandoc提取文本，长度: {len(text)}")
-            return text
-    except Exception as e:
-        print(f"方法7失败: pandoc无法使用: {e}")
-    
-    # 方法8: 使用Windows COM接口（最可靠的方法）
+        print(f"方法4失败: LibreOffice无法使用: {e}")
+
+    # 方法5: 使用Windows COM接口（最可靠的方法）
     if WIN32COM_AVAILABLE:
         text = _extract_from_com(filepath)
         if text:
             return text
     else:
-        print("方法8: win32com库未安装")
+        print("方法5: win32com库未安装")
     
     # 所有方法都失败
     print("所有方法都失败，无法提取WPS文件文本")
     return f"WPS文件: {os.path.basename(filepath)}"
 
 
-def _extract_from_ole(filepath):
-    """
-    从OLE格式的WPS文件中提取文本
-    
-    Args:
-        filepath: WPS文件路径
-        
-    Returns:
-        提取的文本内容，如果提取失败或质量不佳则返回None
-    """
-    try:
-        if not olefile.isOleFile(filepath):
-            print("不是OLE文件")
-            return None
-            
-        ole = olefile.OleFileIO(filepath)
-        
-        # 获取所有流的列表（处理嵌套列表格式）
-        streams = ole.listdir()
-        stream_names = [s[0] if isinstance(s, list) else s for s in streams]
-        print(f"OLE文件包含的流: {stream_names}")
-        
-        # 尝试从WordDocument流中提取文本
-        if 'WordDocument' not in stream_names:
-            print("未找到WordDocument流")
-            ole.close()
-            return None
-            
-        print("找到WordDocument流，正在提取文本...")
-        stream = ole.openstream('WordDocument')
-        data = stream.read()
-        print(f"WordDocument流大小: {len(data)} 字节")
-        
-        # 查找GBK编码的中文字符
-        text_parts = []
-        i = 0
-        while i < len(data) - 1:
-            # GBK编码的中文字符第一个字节在0x81-0xFE范围内
-            if 0x81 <= data[i] <= 0xFE:
-                try:
-                    char = data[i:i+2].decode('gbk')
-                    if '\u4e00' <= char <= '\u9fff':  # 中文字符
-                        text_parts.append(char)
-                        i += 2
-                        continue
-                except:
-                    pass
-            # 英文和数字
-            elif 32 <= data[i] <= 126:
-                text_parts.append(chr(data[i]))
-                i += 1
-                continue
-            i += 1
-        
-        text = ''.join(text_parts)
-        print(f"从OLE提取的原始文本长度: {len(text)}")
-        
-        # 清理文本
-        text = re.sub(r'\s+', ' ', text)
-        text = re.sub(r'(?<![\u4e00-\u9fff])[a-zA-Z](?![\u4e00-\u9fff])', '', text)
-        
-        # 检查文本质量
-        if _check_text_quality(text):
-            print(f"方法4成功: 从OLE格式提取文本，长度: {len(text)}")
-            ole.close()
-            return text
-        else:
-            print(f"方法4: 提取的文本质量不佳（可能是乱码），尝试其他方法")
-            ole.close()
-            return None
-            
-    except Exception as e:
-        print(f"方法4失败: OLE处理失败: {e}")
-        import traceback
-        traceback.print_exc()
-        return None
 
-
-def _check_text_quality(text):
-    """
-    检查提取的文本质量
-    
-    检查条件：
-    1. 文本长度 > 50
-    2. 中文比例 > 30%
-    3. 至少有3组连续的中文字符
-    4. 至少有5个标点符号
-    5. 乱码字符比例 < 10%
-    
-    Args:
-        text: 待检查的文本
-        
-    Returns:
-        如果文本质量合格返回True，否则返回False
-    """
-    if len(text.strip()) <= 50:
-        return False
-    
-    total_chars = len(text.strip())
-    
-    # 检查中文比例
-    chinese_chars = len(re.findall(r'[\u4e00-\u9fff]', text))
-    chinese_ratio = chinese_chars / total_chars if total_chars > 0 else 0
-    if chinese_ratio <= 0.3:
-        return False
-    
-    # 检查连续中文字符
-    consecutive_chinese = len(re.findall(r'[\u4e00-\u9fff]{3,}', text))
-    if consecutive_chinese < 3:
-        return False
-    
-    # 检查标点符号
-    punctuation_count = len(re.findall(r'[，。！？；：""''（）《》【】、]', text))
-    if punctuation_count < 5:
-        return False
-    
-    # 检查乱码字符
-    garbled_chars = len(re.findall(r'[欹増擭褢崌膲瞺亯齎蟸豐蛻筽啒遅貜枑枺銐淾刧鷁褃癳鴙悢昩閑嵮媁痵僗軴弸詋孾刄肙蹚魐瀀錧鱊藌頞]', text))
-    garbled_ratio = garbled_chars / total_chars if total_chars > 0 else 0
-    if garbled_ratio >= 0.1:
-        return False
-    
-    print(f"文本质量检查通过: 中文比例{chinese_ratio:.2%}, 连续中文字符组数{consecutive_chinese}, "
-          f"标点符号数{punctuation_count}, 乱码比例{garbled_ratio:.2%}")
-    return True
 
 
 def _extract_from_com(filepath):
@@ -306,7 +149,7 @@ def _extract_from_com(filepath):
     doc = None
     
     try:
-        print("方法8: 尝试使用Windows COM接口...")
+        print("方法5: 尝试使用Windows COM接口...")
         
         # 初始化COM
         pythoncom.CoInitialize()
@@ -347,13 +190,13 @@ def _extract_from_com(filepath):
             pass
         
         if len(text.strip()) > 50:
-            print(f"方法8成功: 使用Windows COM提取文本，长度: {len(text)}")
+            print(f"方法5成功: 使用Windows COM提取文本，长度: {len(text)}")
             return text
         else:
             return None
             
     except Exception as e:
-        print(f"方法8失败: Windows COM无法使用: {e}")
+        print(f"方法5失败: Windows COM无法使用: {e}")
         import traceback
         traceback.print_exc()
         return None
