@@ -16,8 +16,20 @@ if getattr(sys, 'frozen', False):
     CURRENT_DIR = os.path.dirname(sys.executable)
     # 检查是否在临时目录中
     if r'AppData\Local\Temp' in CURRENT_DIR:
-        # 如果在临时目录中，使用当前工作目录
-        CURRENT_DIR = os.getcwd()
+        # 如果在临时目录中，使用可执行文件的实际目录
+        # 对于PyInstaller打包的应用，我们可以通过sys._MEIPASS获取临时目录
+        # 但我们需要找到实际的安装目录
+        # 尝试从命令行参数中获取安装目录
+        import os
+        # 检查当前目录是否有app.py文件
+        if os.path.exists(os.path.join(os.getcwd(), "app.py")):
+            CURRENT_DIR = os.getcwd()
+        else:
+            # 尝试查找包含app.py的目录
+            for root, dirs, files in os.walk(os.getcwd()):
+                if "app.py" in files:
+                    CURRENT_DIR = root
+                    break
 else:
     # 开发环境
     CURRENT_DIR = os.getcwd()

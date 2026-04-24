@@ -246,8 +246,10 @@ from wps_extractor import extract_text_from_wps
 import excel_previewer
 from excel_previewer import convert_excel_to_html
 # 导入PDF OCR模块
-import pdf_ocr
-from pdf_ocr import ocr_pdf_file
+
+    # import pdf_ocr
+    # from pdf_ocr import ocr_pdf_file
+
 # 导入PDF处理模块
 import pdf_processor
 from pdf_processor import extract_text_from_pdf
