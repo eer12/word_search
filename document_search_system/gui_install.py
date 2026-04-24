@@ -88,41 +88,85 @@ class InstallerApp:
         self.update_status("正在初始化数据库...")
         self.update_progress(70)
         try:
-            # 导入应用程序的数据库初始化函数
-            import sys
+            # 直接创建SQLite数据库和表结构，避免导入app模块导致的套娃问题
             import os
+            import sqlite3
             
             # 获取安装目录
             install_dir = self.dir_var.get()
             
-            # 临时修改sys.executable，确保config.py使用安装目录
-            original_executable = sys.executable
-            # 模拟sys.executable指向安装目录
-            sys.executable = os.path.join(install_dir, '文件检索系统启动程序.exe')
+            # 构建数据库路径
+            db_path = os.path.join(install_dir, 'document_search.db')
             
-            # 添加安装目录到Python搜索路径
-            sys.path.insert(0, install_dir)
+            # 连接数据库
+            conn = sqlite3.connect(db_path)
+            c = conn.cursor()
             
-            # 临时修改环境变量，确保config.py使用安装目录
-            import config
-            # 保存原始BASE_DIR
-            original_base_dir = config.BASE_DIR
-            # 修改BASE_DIR为安装目录
-            config.BASE_DIR = install_dir
-            # 更新DB_PATH为安装目录
-            config.Config.DB_PATH = os.path.join(install_dir, 'document_search.db')
+            # 创建分类表
+            c.execute('''
+                CREATE TABLE IF NOT EXISTS categories (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    description TEXT DEFAULT '',
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
             
-            # 导入app模块
-            import app
-            # 重新初始化app模块的DB_PATH
-            app.DB_PATH = config.Config.DB_PATH
-            # 调用初始化函数
-            app.init_db()
+            # 创建文档表
+            c.execute('''
+                CREATE TABLE IF NOT EXISTS documents (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    file_name TEXT NOT NULL,
+                    file_path TEXT NOT NULL,
+                    file_size INTEGER DEFAULT 0,
+                    issuing_unit TEXT DEFAULT '',
+                    upload_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    update_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    is_delete INTEGER DEFAULT 0,
+                    remark TEXT DEFAULT ''
+                )
+            ''')
             
-            # 恢复原始BASE_DIR
-            config.BASE_DIR = original_base_dir
-            # 恢复原始sys.executable
-            sys.executable = original_executable
+            # 创建文档-分类关联表
+            c.execute('''
+                CREATE TABLE IF NOT EXISTS document_categories (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    document_id INTEGER NOT NULL,
+                    category_id INTEGER NOT NULL,
+                    FOREIGN KEY (document_id) REFERENCES documents(id),
+                    FOREIGN KEY (category_id) REFERENCES categories(id),
+                    UNIQUE (document_id, category_id)
+                )
+            ''')
+            
+            # 创建SQLite全文检索表
+            c.execute('''
+                CREATE VIRTUAL TABLE IF NOT EXISTS file_content_fts USING fts5(
+                    content,                -- 全文内容
+                    file_id,                -- 关联的文档ID
+                    tokenize=unicode61  -- 使用unicode61分词器
+                )
+            ''')
+            
+            # 创建触发器，在文档删除时同时删除全文检索记录
+            c.execute('''
+                CREATE TRIGGER IF NOT EXISTS documents_delete_trigger
+                AFTER DELETE ON documents
+                FOR EACH ROW
+                BEGIN
+                    DELETE FROM file_content_fts WHERE file_id = OLD.id;
+                END
+            ''')
+            
+            # 插入默认分类
+            c.execute('SELECT COUNT(*) FROM categories')
+            if c.fetchone()[0] == 0:
+                c.execute('INSERT INTO categories (name, description) VALUES (?, ?)', ('默认分类', '系统默认分类'))
+                conn.commit()
+            
+            conn.commit()
+            conn.close()
             
             self.update_status("数据库初始化成功")
             self.update_progress(80)

@@ -5,9 +5,11 @@ from datetime import datetime
 from docx import Document
 
 # 导入配置
-from .config import Config
+import config
+from config import Config
 # 导入通用工具
-from .utils import convert_with_libreoffice, extract_text_from_html
+import utils
+from utils import convert_with_libreoffice, extract_text_from_html
 
 # 禁用 OneDNN 加速，避免算子冲突
 os.environ['FLAGS_use_mkldnn'] = '0'
@@ -237,14 +239,18 @@ def extract_text_from_doc(filepath):
     return text
 
 # 从wps_extractor模块导入WPS文件文本提取函数
-from .wps_extractor import extract_text_from_wps
+import wps_extractor
+from wps_extractor import extract_text_from_wps
 
 # 导入Excel文件预览模块
-from .excel_previewer import convert_excel_to_html
+import excel_previewer
+from excel_previewer import convert_excel_to_html
 # 导入PDF OCR模块
-from .pdf_ocr import ocr_pdf_file
+import pdf_ocr
+from pdf_ocr import ocr_pdf_file
 # 导入PDF处理模块
-from .pdf_processor import extract_text_from_pdf
+import pdf_processor
+from pdf_processor import extract_text_from_pdf
 
 def extract_text_from_txt(filepath):
     text = ''

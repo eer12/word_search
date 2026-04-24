@@ -106,7 +106,7 @@ def extract_text_from_wps(filepath):
     # 方法4: 尝试使用LibreOffice转换为HTML，然后提取文本
     try:
         # 导入LibreOffice转换函数
-        from .utils import convert_with_libreoffice, extract_text_from_html
+        from utils import convert_with_libreoffice, extract_text_from_html
         html_content = convert_with_libreoffice(filepath, 'html')
         if html_content:
             # 从HTML中提取纯文本

@@ -9,6 +9,16 @@ import subprocess
 import shutil
 import sys
 
+# 获取pyinstaller的完整路径
+PYINSTALLER_PATH = os.path.join(os.path.expanduser("~"), "AppData", "Roaming", "Python", "Python39", "Scripts", "pyinstaller.exe")
+print(f"pyinstaller路径: {PYINSTALLER_PATH}")
+
+# 检查pyinstaller是否存在
+if not os.path.exists(PYINSTALLER_PATH):
+    print(f"错误: pyinstaller不存在于路径: {PYINSTALLER_PATH}")
+    print("请确保pyinstaller已正确安装")
+    sys.exit(1)
+
 # 项目根目录
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # 输出目录
@@ -47,19 +57,23 @@ def build_launch_gui():
     
     # 准备数据文件参数
     data_files = [
-        f"{os.path.join(PROJECT_ROOT, 'app.py')};.",
-        f"{os.path.join(PROJECT_ROOT, 'config.py')};.",
-        f"{os.path.join(PROJECT_ROOT, 'run_production.py')};.",
-        f"{os.path.join(PROJECT_ROOT, 'wps_extractor.py')};.",
-        f"{os.path.join(PROJECT_ROOT, 'analyze_wps.py')};.",
-        f"{os.path.join(PROJECT_ROOT, 'query_db.py')};.",
-        f"{os.path.join(PROJECT_ROOT, 'templates')};templates",
+        f"{os.path.join(PROJECT_ROOT, 'document_search_system', 'app.py')};.",
+        f"{os.path.join(PROJECT_ROOT, 'document_search_system', 'config.py')};.",
+        f"{os.path.join(PROJECT_ROOT, 'document_search_system', 'run_production.py')};.",
+        f"{os.path.join(PROJECT_ROOT, 'document_search_system', 'wps_extractor.py')};.",
+        f"{os.path.join(PROJECT_ROOT, 'document_search_system', 'analyze_wps.py')};.",
+        f"{os.path.join(PROJECT_ROOT, 'document_search_system', 'query_db.py')};.",
+        f"{os.path.join(PROJECT_ROOT, 'document_search_system', 'templates')};templates",
+        f"{os.path.join(PROJECT_ROOT, 'requirements.txt')};.",
         f"{os.path.join(PROJECT_ROOT, '使用说明.txt')};使用说明.txt",
-        f"{os.path.join(PROJECT_ROOT, '使用说明.md')};使用说明.md"
+        f"{os.path.join(PROJECT_ROOT, '使用说明.md')};使用说明.md",
+        f"{os.path.join(PROJECT_ROOT, 'document_search_system', 'excel_previewer.py')};.",
+        f"{os.path.join(PROJECT_ROOT, 'document_search_system', 'pdf_processor.py')};.",
+        f"{os.path.join(PROJECT_ROOT, 'document_search_system', 'utils.py')};."
     ]
     
     cmd = [
-        "pyinstaller",
+        f"{PYINSTALLER_PATH}",
         "--onefile",
         "--name", "文件检索系统启动程序",
         "--windowed",
@@ -86,6 +100,8 @@ def build_launch_gui():
         "--hidden-import", "mammoth",
         "--hidden-import", "olefile",
         "--hidden-import", "docx2txt",
+        "--hidden-import", "openpyxl",
+        "--hidden-import", "xlrd",
         "--hidden-import", "win32api",
         "--hidden-import", "win32con",
         "--hidden-import", "pythoncom",
@@ -97,8 +113,8 @@ def build_launch_gui():
         cmd.extend(["--add-data", data_file])
     
     # 添加主脚本
-    cmd.append(os.path.join(PROJECT_ROOT, "launch_gui.py"))
-    # 移除pywpsrpc依赖，因为它不存在
+    cmd.append(os.path.join(PROJECT_ROOT, "document_search_system", "launch_gui.py"))
+   # 移除pywpsrpc依赖，因为它不存在
     result = run_command(cmd, cwd=PROJECT_ROOT)
     if result.returncode != 0:
         print("打包 launch_gui.py 失败")
@@ -140,10 +156,10 @@ def build_stop_service():
     if os.path.exists(spec_file):
         print("删除关闭文件检索系统.spec文件")
         os.remove(spec_file)
-    
+       
     # 构建命令
     cmd = [
-        "pyinstaller",
+        f"{PYINSTALLER_PATH}",
         "--onefile",
         "--name", "关闭文件检索系统",
         "--console",
@@ -151,7 +167,7 @@ def build_stop_service():
     ]
     
     # 添加主脚本
-    cmd.append(os.path.join(PROJECT_ROOT, "stop_service.py"))
+    cmd.append(os.path.join(PROJECT_ROOT, "document_search_system", "stop_service.py"))
     
     # 检查当前目录
     print(f"当前工作目录: {os.getcwd()}")
@@ -201,24 +217,28 @@ def build_gui_install():
         print("删除gui_install.spec文件")
         os.remove(spec_file)
     
+   
     # 准备数据文件参数
     data_files = [
-        f"{os.path.join(PROJECT_ROOT, 'app.py')};.",
-        f"{os.path.join(PROJECT_ROOT, 'config.py')};.",
-        f"{os.path.join(PROJECT_ROOT, 'run_production.py')};.",
-        f"{os.path.join(PROJECT_ROOT, 'launch_gui.py')};.",
-        f"{os.path.join(PROJECT_ROOT, 'wps_extractor.py')};.",
-        f"{os.path.join(PROJECT_ROOT, 'analyze_wps.py')};.",
-        f"{os.path.join(PROJECT_ROOT, 'query_db.py')};.",
-        f"{os.path.join(PROJECT_ROOT, 'templates')};templates",
+        f"{os.path.join(PROJECT_ROOT, 'document_search_system', 'app.py')};.",
+        f"{os.path.join(PROJECT_ROOT, 'document_search_system', 'config.py')};.",
+        f"{os.path.join(PROJECT_ROOT, 'document_search_system', 'run_production.py')};.",
+        f"{os.path.join(PROJECT_ROOT, 'document_search_system', 'launch_gui.py')};.",
+        f"{os.path.join(PROJECT_ROOT, 'document_search_system', 'wps_extractor.py')};.",
+        f"{os.path.join(PROJECT_ROOT, 'document_search_system', 'analyze_wps.py')};.",
+        f"{os.path.join(PROJECT_ROOT, 'document_search_system', 'query_db.py')};.",
+        f"{os.path.join(PROJECT_ROOT, 'document_search_system', 'templates')};templates",
         f"{os.path.join(PROJECT_ROOT, 'requirements.txt')};.",
         f"{os.path.join(PROJECT_ROOT, '使用说明.txt')};使用说明.txt",
-        f"{os.path.join(PROJECT_ROOT, '使用说明.md')};使用说明.md"
+        f"{os.path.join(PROJECT_ROOT, '使用说明.md')};使用说明.md",
+        f"{os.path.join(PROJECT_ROOT, 'document_search_system', 'excel_previewer.py')};.",
+        f"{os.path.join(PROJECT_ROOT, 'document_search_system', 'pdf_processor.py')};.",
+        f"{os.path.join(PROJECT_ROOT, 'document_search_system', 'utils.py')};."
     ]
     
     # 构建命令
     cmd = [
-        "pyinstaller",
+        f"{PYINSTALLER_PATH}",
         "--onefile",
         "--name", "gui_install",
         "--windowed",
@@ -245,6 +265,8 @@ def build_gui_install():
         "--hidden-import", "mammoth",
         "--hidden-import", "olefile",
         "--hidden-import", "docx2txt",
+        "--hidden-import", "openpyxl",
+        "--hidden-import", "xlrd",
         "--hidden-import", "win32api",
         "--hidden-import", "win32con",
         "--hidden-import", "pythoncom",
@@ -256,7 +278,7 @@ def build_gui_install():
         cmd.extend(["--add-data", data_file])
     
     # 添加主脚本
-    cmd.append(os.path.join(PROJECT_ROOT, "gui_install.py"))
+    cmd.append(os.path.join(PROJECT_ROOT, "document_search_system", "gui_install.py"))
     
     # 检查当前目录
     print(f"当前工作目录: {os.getcwd()}")

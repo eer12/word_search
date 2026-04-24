@@ -10,9 +10,6 @@ def get_base_dir():
         # 开发环境
         return os.path.dirname(os.path.abspath(__file__))
 
-# 全局BASE_DIR变量，保持向后兼容
-BASE_DIR = get_base_dir()
-
 # 系统配置
 class Config:
 
@@ -53,6 +50,9 @@ class Config:
         if not os.path.exists(os.path.join(get_base_dir(), 'logs')):
             os.makedirs(os.path.join(get_base_dir(), 'logs'))
 
+# 全局BASE_DIR变量，保持向后兼容
+BASE_DIR = get_base_dir()
+
 # 添加类属性，确保向后兼容
-Config.UPLOAD_FOLDER = property(lambda self: Config.get_upload_folder())
-Config.DB_PATH = property(lambda self: Config.get_db_path())
+Config.UPLOAD_FOLDER = Config.get_upload_folder()
+Config.DB_PATH = Config.get_db_path()
