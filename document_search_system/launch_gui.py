@@ -45,6 +45,107 @@ LOG_FILE = os.path.join(LOG_DIR, "launch.log")
 # 应用程序配置
 APP_DIR = CURRENT_DIR
 
+# 服务器以独立进程方式运行时使用的隐藏启动参数
+SERVER_ARG = "--run-server"
+# Windows 进程创建标志：分离进程 + 新进程组 + 无窗口
+DETACHED_PROCESS = 0x00000008
+CREATE_NEW_PROCESS_GROUP = 0x00000200
+CREATE_NO_WINDOW = 0x08000000
+
+# 服务器进程PID记录文件（供停止工具精确定位）
+PID_FILE = os.path.join(CURRENT_DIR, "server.pid")
+# 服务器运行日志
+SERVER_LOG = os.path.join(LOG_DIR, "server.log")
+
+
+def is_port_open(port=8080):
+    """检测端口是否已被监听"""
+    import socket
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(1)
+    try:
+        return sock.connect_ex(('localhost', port)) == 0
+    finally:
+        sock.close()
+
+
+def build_child_env():
+    """构造子进程环境变量：剔除PyInstaller引导器的内部变量。
+    否则子进程（同一exe的第二实例）会复用启动器的 _MEI 临时目录，
+    启动器退出时目录因被子进程占用而删除失败，弹出警告框。"""
+    child_env = dict(os.environ)
+    for key in list(child_env.keys()):
+        if key.startswith('_PYI_') or key.startswith('_MEIPASS') \
+                or key.startswith('_MEI'):
+            child_env.pop(key, None)
+    return child_env
+
+
+def find_pids_on_port(port=8080):
+    """查找监听指定端口的进程PID集合"""
+    pids = set()
+    try:
+        result = subprocess.run(['netstat', '-ano'],
+                                capture_output=True, text=True, timeout=5)
+        suffix = ':' + str(port)
+        for line in result.stdout.splitlines():
+            parts = line.split()
+            if len(parts) >= 5 and parts[0].upper() == 'TCP' \
+                    and parts[3].upper() == 'LISTENING' \
+                    and parts[1].endswith(suffix):
+                pid_str = parts[-1]
+                if pid_str.isdigit():
+                    pids.add(int(pid_str))
+    except Exception:
+        pass
+    return pids
+
+
+def run_server_mode():
+    """独立服务器进程入口：运行生产环境服务器，阻塞直到服务退出。
+    由启动器以分离进程方式通过 SERVER_ARG 参数拉起，不显示界面。"""
+    original_cwd = os.getcwd()
+    try:
+        os.chdir(APP_DIR)
+        # 记录服务进程PID，供停止工具定位
+        try:
+            with open(PID_FILE, "w", encoding="utf-8") as f:
+                f.write(str(os.getpid()))
+        except Exception:
+            pass
+        # 该进程无控制台，把输出重定向到日志文件
+        log_f = open(SERVER_LOG, "a", encoding="utf-8")
+        log_f.write(f"\n[{time.strftime('%Y-%m-%d %H:%M:%S')}] "
+                    f"服务器进程启动，PID: {os.getpid()}\n")
+        log_f.flush()
+        sys.stdout = log_f
+        sys.stderr = log_f
+        # 定位生产环境脚本：优先安装目录，其次打包内建资源
+        production_script = os.path.join(APP_DIR, "run_production.py")
+        if not os.path.exists(production_script) and hasattr(sys, '_MEIPASS'):
+            production_script = os.path.join(sys._MEIPASS, "run_production.py")
+        import runpy
+        runpy.run_path(production_script, run_name='__main__')
+    except Exception:
+        try:
+            traceback.print_exc()
+        except Exception:
+            pass
+    finally:
+        # 仅清理本进程写入的PID文件
+        try:
+            if os.path.exists(PID_FILE):
+                with open(PID_FILE, "r", encoding="utf-8") as f:
+                    if f.read().strip() == str(os.getpid()):
+                        os.remove(PID_FILE)
+        except Exception:
+            pass
+        try:
+            os.chdir(original_cwd)
+        except Exception:
+            pass
+
+
 class LaunchGUI:
     def __init__(self, root):
         self.root = root
@@ -123,33 +224,29 @@ class LaunchGUI:
                 # 当应用被打包为可执行文件时，sys.executable指向的是打包后的可执行文件
                 # 我们需要找到真实的Python解释器，或者使用不同的方式运行脚本
                 if getattr(sys, 'frozen', False):
-                    # 可执行文件环境
-                    self.log("检测到可执行文件环境，使用线程方式运行脚本")
-                    # 在打包环境中，直接使用线程方式运行脚本，不依赖外部Python解释器
-                    def run_script():
-                        try:
-                            import runpy
-                            import os
-                            # 保存原始工作目录
-                            original_cwd = os.getcwd()
-                            # 设置工作目录为APP_DIR
-                            os.chdir(APP_DIR)
-                            self.log(f"使用runpy运行脚本: {production_script}")
-                            self.log(f"工作目录: {os.getcwd()}")
-                            # 运行脚本
-                            runpy.run_path(production_script, run_name='__main__')
-                            # 恢复原始工作目录
-                            os.chdir(original_cwd)
-                        except Exception as e:
-                            self.log(f"运行脚本失败: {e}")
-                            import traceback
-                            self.log(traceback.format_exc())
-                    # 启动新线程运行脚本
-                    threading.Thread(target=run_script, daemon=True).start()
-                    # 由于我们在当前进程中运行脚本，没有单独的进程
-                    # 所以我们设置app_process为None，使用端口检查来判断服务是否启动
-                    self.app_process = None
-                    self.log("脚本已在后台线程中启动")
+                    # 可执行文件环境：以“独立分离进程”重新启动自身来运行服务器。
+                    # 分离进程不属于启动器，启动器退出（20秒自动关闭）后
+                    # 服务器进程仍然存活，http://localhost:8080 可继续访问。
+                    if is_port_open(8080):
+                        self.log("检测到8080端口已有服务在运行，无需重复启动")
+                        self.app_process = None
+                        return True
+                    self.log("检测到可执行文件环境，以独立后台进程方式启动服务器")
+                    boot_log = open(os.path.join(LOG_DIR, "server_boot.log"), "ab")
+                    self.app_process = subprocess.Popen(
+                        [sys.executable, SERVER_ARG],
+                        cwd=APP_DIR,
+                        env=build_child_env(),
+                        stdin=subprocess.DEVNULL,
+                        stdout=boot_log,
+                        stderr=subprocess.STDOUT,
+                        close_fds=True,
+                        creationflags=DETACHED_PROCESS
+                                    | CREATE_NEW_PROCESS_GROUP
+                                    | CREATE_NO_WINDOW
+                    )
+                    boot_log.close()
+                    self.log(f"服务器进程已启动，PID: {self.app_process.pid}")
 
                 else:
                     # 开发环境
@@ -227,7 +324,7 @@ class LaunchGUI:
                         except:
                             pass
                 else:
-                    self.log("打包环境: 脚本在后台线程中运行，无法检查进程状态")
+                    self.log("服务器进程未持有句柄，无法检查进程状态")
                 return False
             else:
                 # 备用方案：直接运行Flask应用
@@ -399,41 +496,57 @@ class LaunchGUI:
             self.start_btn.config(state=tk.DISABLED)
             self.stop_btn.config(state=tk.DISABLED)
             
-            # 停止应用服务
-            if self.app_process:
+            # 停止应用服务（服务器是独立进程，按端口/PID精确定位，
+            # 不能再像以前那样杀掉机器上所有 python.exe）
+            stopped = False
+            kill_pids = find_pids_on_port(8080)
+            # 补充 PID 文件中记录的服务进程
+            try:
+                if os.path.exists(PID_FILE):
+                    with open(PID_FILE, "r", encoding="utf-8") as f:
+                        pid_text = f.read().strip()
+                    if pid_text.isdigit():
+                        kill_pids.add(int(pid_text))
+            except Exception:
+                pass
+            for pid in kill_pids:
+                if pid == os.getpid():
+                    continue
                 try:
-                    self.log("停止应用服务...")
+                    self.log(f"正在停止服务器进程，PID: {pid}")
+                    kill_result = subprocess.run(
+                        ['taskkill', '/T', '/F', '/PID', str(pid)],
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                        text=True, timeout=5)
+                    if kill_result.returncode == 0:
+                        stopped = True
+                except Exception as e:
+                    self.log(f"停止进程 {pid} 失败: {e}")
+            # 兜底：终止启动器持有的进程句柄
+            if self.app_process and self.app_process.poll() is None:
+                try:
+                    self.log("终止启动器持有的服务器进程...")
                     self.app_process.terminate()
+                    self.app_process.wait(timeout=3)
+                    stopped = True
+                except Exception:
                     try:
-                        self.app_process.wait(timeout=3)
-                        self.log("应用服务已停止")
-                    except subprocess.TimeoutExpired:
-                        self.log("应用服务未响应，强制停止...")
                         self.app_process.kill()
                         self.app_process.wait()
-                        self.log("应用服务已强制停止")
-                except Exception as e:
-                    self.log(f"停止应用服务失败: {e}")
-            else:
-                # 打包环境，脚本在后台线程中运行
-                # 由于使用了daemon=True，主线程退出时后台线程会自动退出
-                self.log("打包环境: 应用服务在后台线程中运行，将随主线程退出而停止")
-            
-
-            
-            # 确保所有相关进程都已停止
+                        stopped = True
+                    except Exception:
+                        pass
+            # 清理PID文件
             try:
-                self.log("检查并清理残留进程...")
-                # 查找并停止所有python进程（运行run_production.py或app.py的）
-                result = subprocess.run(['tasklist', '/FI', 'IMAGENAME eq python.exe'], 
-                                      capture_output=True, text=True, timeout=5)
-                if 'python.exe' in result.stdout:
-                    self.log("发现残留的Python进程，正在停止...")
-                    subprocess.run(['taskkill', '/F', '/IM', 'python.exe'], 
-                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=5)
-            except Exception as e:
-                self.log(f"清理残留进程失败: {e}")
-            
+                if os.path.exists(PID_FILE):
+                    os.remove(PID_FILE)
+            except Exception:
+                pass
+
+            if stopped:
+                self.log("应用服务已停止")
+            else:
+                self.log("未发现正在运行的应用服务")
             self.status_var.set("服务已停止")
             self.running = False
             self.start_btn.config(state=tk.NORMAL)
@@ -443,12 +556,17 @@ class LaunchGUI:
     
     def exit_app(self):
         """退出应用"""
-        # 直接退出应用，不停止服务
-        # 在打包环境中，服务在后台独立进程中运行，不会随启动器退出而停止
-        # 即使在开发环境中，服务在后台线程中运行，使用了daemon=True，主线程退出时后台线程会自动退出
+        # 只关闭启动器窗口，不停止服务：
+        # 打包环境中服务运行在独立分离进程里，启动器退出后仍继续提供服务
         self.root.quit()
 
 if __name__ == "__main__":
+    # 独立服务器进程模式：由启动器以分离进程方式拉起，
+    # 不显示界面、不参与单实例锁，直接阻塞运行服务器
+    if SERVER_ARG in sys.argv:
+        run_server_mode()
+        sys.exit(0)
+
     # 防止重复启动
     import os
     import tempfile
