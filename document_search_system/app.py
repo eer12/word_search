@@ -420,8 +420,16 @@ def extract_context(text, keyword, max_chars=200):
         except:
             pass
     
-    # 限制数量，不进行去重，确保显示所有关键词出现的句子
-    return contexts[:10]  # 最多返回10个上下文
+    # 对完全相同的上下文去重（保留首次出现的顺序）。
+    # Excel中同一无标点区域内关键词可能出现多次（单元格间是制表符/换行，
+    # 不是句读标点），会产生多条完全相同的上下文，只需展示一次。
+    seen = set()
+    unique_contexts = []
+    for ctx in contexts:
+        if ctx not in seen:
+            seen.add(ctx)
+            unique_contexts.append(ctx)
+    return unique_contexts[:10]  # 最多返回10个上下文
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
