@@ -251,7 +251,7 @@
           <div class="download-option">
             <h3>Excel文件查看</h3>
             <p>无法在线预览此文件，您可以下载后查看：</p>
-            <a href="/get-file/{{ file_id }}" download="{{ file_name }}" class="download-btn">下载文件</a>
+            <button onclick='downloadFile({{ file_id }}, {{ file_name|tojson }})' class="download-btn">下载文件</button>
           </div>
           {% endif %}
           {% elif file_ext in ['doc', 'docx', 'wps'] %}
@@ -266,7 +266,7 @@
           <div class="download-option">
             <h3>{% if file_ext == 'wps' %}WPS{% else %}Word{% endif %}文件查看</h3>
             <p>无法在线预览此文件，您可以下载后查看：</p>
-            <a href="/get-file/{{ file_id }}" download="{{ file_name }}" class="download-btn">下载文件</a>
+            <button onclick='downloadFile({{ file_id }}, {{ file_name|tojson }})' class="download-btn">下载文件</button>
           </div>
           {% endif %}
           {% else %}
@@ -277,5 +277,29 @@
       </div>
     </div>
   </div>
+    <script>
+    function downloadFile(fileId, fileName) {
+        if (window.pywebview && window.pywebview.api) {
+            window.pywebview.api.download_file(fileId, fileName).then(function(result) {
+                if (!result.success) {
+                    if (result.error !== '用户取消保存') alert('下载失败: ' + result.error);
+                } else {
+                    alert('文件已保存到: ' + result.path);
+                }
+            });
+        } else {
+            fetch('/download-file/' + fileId)
+                .then(r => r.blob())
+                .then(b => {
+                    var url = URL.createObjectURL(b);
+                    var a = document.createElement('a');
+                    a.href = url; a.download = fileName;
+                    document.body.appendChild(a); a.click();
+                    document.body.removeChild(a); URL.revokeObjectURL(url);
+                })
+                .catch(err => alert('下载失败: ' + err));
+        }
+    }
+    </script>
 </body>
 </html>

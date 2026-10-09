@@ -216,12 +216,12 @@ def build_gui_install():
     print("\n=== 打包 gui_install.py ===")
     # 先清理之前的构建结果
     build_dir = os.path.join(PROJECT_ROOT, "build")
-    spec_file = os.path.join(PROJECT_ROOT, "gui_install.spec")
+    spec_file = os.path.join(PROJECT_ROOT, "文件存储检索工具安装程序.spec")
     if os.path.exists(build_dir):
         print("清理build目录")
         shutil.rmtree(build_dir)
     if os.path.exists(spec_file):
-        print("删除gui_install.spec文件")
+        print("删除文件存储检索工具安装程序.spec文件")
         os.remove(spec_file)
     
    
@@ -247,7 +247,7 @@ def build_gui_install():
     cmd = [
         f"{PYINSTALLER_PATH}",
         "--onefile",
-        "--name", "gui_install",
+        "--name", "文件存储检索工具安装程序",
         "--windowed",
         "--collect-all", "tkinter",
         "--collect-all", "tcl",
@@ -298,8 +298,8 @@ def build_gui_install():
         print("打包 gui_install.py 失败")
         return False
     
-    # 检查gui_install.exe是否生成
-    gui_install_exe = os.path.join(PROJECT_ROOT, "dist", "gui_install.exe")
+    # 检查文件存储检索工具安装程序.exe是否生成
+    gui_install_exe = os.path.join(PROJECT_ROOT, "dist", "文件存储检索工具安装程序.exe")
     print(f"检查文件是否存在: {gui_install_exe}")
     print(f"文件存在: {os.path.exists(gui_install_exe)}")
     
@@ -358,7 +358,7 @@ def verify_build():
     """验证构建结果"""
     print("\n=== 验证构建结果 ===")
     files_to_check = [
-        "gui_install.exe",
+        "文件存储检索工具安装程序.exe",
         "文件存储检索工具.exe",
         "关闭文件检索系统.exe"
     ]
@@ -407,11 +407,11 @@ def main():
     
     print("\n=== 打包完成 ===")
     print(f"您可以在 {DIST_DIR} 目录中找到以下文件:")
-    print("- gui_install.exe: 图形化安装程序（使用SQLite数据库）")
+    print("- 文件存储检索工具安装程序.exe: 图形化安装程序（使用SQLite数据库）")
     print("- 文件存储检索工具.exe: 图形化启动器")
     print("- 关闭文件检索系统.exe: 服务停止工具")
     print("\n安装步骤:")
-    print("1. 运行 gui_install.exe")
+    print("1. 运行 文件存储检索工具安装程序.exe")
     print("2. 选择安装目录")
     print("3. 等待安装完成")
     print("4. 在安装目录中运行 文件存储检索工具.exe 启动应用")

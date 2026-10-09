@@ -386,6 +386,15 @@ class InstallerApp:
             import traceback
             self.update_status(f"错误详情: {traceback.format_exc()}")
 
+        # 清理旧版本残留的exe文件
+        try:
+            old_exe = os.path.join(install_dir, "文件检索系统启动程序.exe")
+            if os.path.exists(old_exe):
+                os.remove(old_exe)
+                self.update_status("已清理旧版启动程序文件检索系统启动程序.exe")
+        except Exception:
+            pass
+
         # 创建桌面快捷方式
         self.update_status("正在创建桌面快捷方式...")
         try:
@@ -417,9 +426,6 @@ class InstallerApp:
             shortcut_path = os.path.join(desktop_path, "文件存储检索工具.lnk")
             # 目标exe路径
             target_exe = os.path.join(install_dir, "文件存储检索工具.exe")
-            if not os.path.exists(target_exe):
-                # 回退：尝试旧名称
-                target_exe = os.path.join(install_dir, "文件检索系统启动程序.exe")
             # 创建快捷方式
             shortcut = shell.CreateShortCut(shortcut_path)
             shortcut.Targetpath = target_exe

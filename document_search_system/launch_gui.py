@@ -153,6 +153,59 @@ def run_server_mode():
             pass
 
 
+class DownloadApi:
+    """pywebview JS API：处理内嵌浏览器中的文件下载。
+    在JS中通过 window.pywebview.api.download_file(file_id, file_name) 调用。"""
+
+    def download_file(self, file_id, file_name):
+        """显示保存对话框，从Flask服务器下载文件并保存到用户选择的位置。"""
+        import urllib.request
+        import tempfile
+        import shutil
+
+        # 确保file_name是字符串
+        if not file_name:
+            file_name = ''
+        file_name = str(file_name)
+
+        try:
+            # 根据扩展名构造文件类型过滤器
+            ext = os.path.splitext(file_name)[1].lower()
+            if ext:
+                file_types = (f'文件 (*{ext})', f'*{ext}')
+            else:
+                file_types = ()
+
+            # 显示原生保存对话框，预填文件名
+            save_path = webview.windows[0].create_file_dialog(
+                webview.SAVE_DIALOG,
+                save_filename=file_name,
+                file_types=file_types
+            )
+            if not save_path:
+                return {'success': False, 'error': '用户取消保存'}
+
+            # 确保保存路径有扩展名（用户可能没输入）
+            if ext and not save_path.lower().endswith(ext):
+                save_path = save_path + ext
+
+            # 从Flask服务器下载文件到临时文件
+            url = f'http://localhost:8080/download-file/{file_id}'
+            tmp_path = tempfile.NamedTemporaryFile(delete=False).name
+            urllib.request.urlretrieve(url, tmp_path)
+
+            # 复制到用户选择的位置
+            shutil.copy2(tmp_path, save_path)
+            try:
+                os.unlink(tmp_path)
+            except Exception:
+                pass
+
+            return {'success': True, 'path': save_path}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+
+
 class LaunchGUI:
     def __init__(self, root):
         self.root = root
@@ -571,13 +624,14 @@ class LaunchGUI:
         try:
             # 先隐藏tkinter窗口
             self.root.withdraw()
-            # 创建webview窗口
+            # 创建webview窗口，传入JS API用于文件下载
             webview.create_window(
                 title='文档本地存储检索工具1.2',
                 url='http://localhost:8080',
                 width=1200,
                 height=800,
-                min_size=(800, 600)
+                min_size=(800, 600),
+                js_api=DownloadApi()
             )
             # webview.start() 阻塞主线程，直到窗口关闭
             webview.start()
