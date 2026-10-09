@@ -264,25 +264,25 @@
       <div class="tab active" data-tab="single" style="padding: 12px 24px; cursor: pointer; border-bottom: 3px solid #3498db; font-weight: 600; color: #3498db;">单个上传</div>
       <div class="tab" data-tab="batch" style="padding: 12px 24px; cursor: pointer; border-bottom: 3px solid transparent; font-weight: 500; color: #666;">批量上传</div>
     </div>
-    
+
+    <!-- 进度条（放在表单外，两个表单共用，切换标签时不被隐藏） -->
+    <div id="progress-container" style="display: none; margin-bottom: 15px;">
+      <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+        <span>处理进度:</span>
+        <span id="progress-percentage">0%</span>
+      </div>
+      <div style="width: 100%; height: 10px; background-color: #f0f0f0; border-radius: 5px; overflow: hidden;">
+        <div id="progress-bar" style="height: 100%; width: 0%; background-color: #3498db; transition: width 0.3s ease;"></div>
+      </div>
+      <div id="progress-message" style="margin-top: 5px; font-size: 0.8rem; color: #666;">准备上传...</div>
+    </div>
+
     <!-- 单个上传表单 -->
     <form id="single-upload-form" class="upload-form" action="/upload" method="post" enctype="multipart/form-data">
       <div class="form-group">
         <label for="document">选择文档 (支持Word、PDF、WPS、TXT和Excel格式)</label>
         <input type="file" id="document" name="document" accept=".docx,.pdf,.doc,.wps,.txt,.xlsx,.xls" required>
         <small class="form-text text-muted" style="color: #dc3545; font-weight: 500; margin-top: 5px;">⚠️注意：公网云版本2核2gb算力太小，无法加载开源pdf识别模型，不支持ocr识别pdf扫描件，严禁上传涉密文件！</small>
-        
-        <!-- 进度条 -->
-        <div id="progress-container" style="display: none; margin-top: 15px;">
-          <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-            <span>处理进度:</span>
-            <span id="progress-percentage">0%</span>
-          </div>
-          <div style="width: 100%; height: 10px; background-color: #f0f0f0; border-radius: 5px; overflow: hidden;">
-            <div id="progress-bar" style="height: 100%; width: 0%; background-color: #3498db; transition: width 0.3s ease;"></div>
-          </div>
-          <div id="progress-message" style="margin-top: 5px; font-size: 0.8rem; color: #666;">准备上传...</div>
-        </div>
       </div>
       <div class="form-group">
         <label>分类（可多选）</label>
@@ -594,6 +594,79 @@
             xhr.open('POST', '/upload');
             xhr.send(formData);
           });
+
+          // 批量上传进度条
+          const batchForm = document.getElementById('batch-upload-form');
+          if (batchForm) {
+            batchForm.addEventListener('submit', function(e) {
+              e.preventDefault();
+              const formData = new FormData(batchForm);
+              const xhr = new XMLHttpRequest();
+              progressContainer.style.display = 'block';
+              let progressTimer = null;
+              let currentProgress = 0;
+
+              xhr.upload.addEventListener('progress', function(e) {
+                if (e.lengthComputable) {
+                  currentProgress = Math.round((e.loaded / e.total) * 30);
+                  progressBar.style.width = currentProgress + '%';
+                  progressPercentage.textContent = currentProgress + '%';
+                  progressMessage.textContent = `批量上传中... ${currentProgress}%`;
+                }
+              });
+
+              xhr.upload.addEventListener('load', function() {
+                currentProgress = 30;
+                progressBar.style.width = currentProgress + '%';
+                progressPercentage.textContent = currentProgress + '%';
+                progressMessage.textContent = '正在批量处理文档，请耐心等待...';
+                progressTimer = setInterval(function() {
+                  if (currentProgress < 99) {
+                    currentProgress++;
+                    progressBar.style.width = currentProgress + '%';
+                    progressPercentage.textContent = currentProgress + '%';
+                  }
+                }, 500);
+              });
+
+              xhr.addEventListener('load', function() {
+                clearInterval(progressTimer);
+                if (xhr.status === 200) {
+                  if (currentProgress < 99) {
+                    currentProgress = 99;
+                    progressBar.style.width = currentProgress + '%';
+                    progressPercentage.textContent = currentProgress + '%';
+                    progressMessage.textContent = '正在批量处理文档，请耐心等待...';
+                    setTimeout(function() {
+                      progressBar.style.width = '100%';
+                      progressPercentage.textContent = '100%';
+                      progressMessage.textContent = '处理完成，正在跳转...';
+                      setTimeout(function() {
+                        document.body.innerHTML = xhr.responseText;
+                      }, 1000);
+                    }, 1000);
+                  } else {
+                    progressBar.style.width = '100%';
+                    progressPercentage.textContent = '100%';
+                    progressMessage.textContent = '处理完成，正在跳转...';
+                    setTimeout(function() {
+                      document.body.innerHTML = xhr.responseText;
+                    }, 1000);
+                  }
+                } else {
+                  progressMessage.textContent = '处理失败，请重试';
+                }
+              });
+
+              xhr.addEventListener('error', function() {
+                clearInterval(progressTimer);
+                progressMessage.textContent = '上传失败，请重试';
+              });
+
+              xhr.open('POST', '/batch-upload');
+              xhr.send(formData);
+            });
+          }
         });
       </script>
       <div class="form-group">

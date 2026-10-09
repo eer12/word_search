@@ -188,31 +188,73 @@ def extract_text_from_docx(filepath):
     return text
 
 def extract_text_from_doc(filepath):
-    text = ''
-    try:
-        # 尝试使用docx2txt库处理doc文件
-        if DOCX2TXT_AVAILABLE:
-            text = docx2txt.process(filepath)
-        else:
-            raise ImportError("docx2txt库未安装")
-    except Exception as e:
-        print(f"使用docx2txt处理DOC文件失败: {e}")
-        # 尝试使用LibreOffice转换为HTML，然后提取文本
+    """从.doc文件提取文本，按可靠性依次尝试COM、docx2txt、LibreOffice、olefile"""
+    # 方法1：Windows COM接口（最可靠，需安装Word/WPS）
+    text = _extract_doc_with_com(filepath)
+    if text and len(text.strip()) > 10:
+        print(f"使用COM成功提取DOC文本，长度: {len(text)}")
+        return text
+
+    # 方法2：docx2txt库（对.doc格式支持有限）
+    if DOCX2TXT_AVAILABLE:
         try:
-            html_content = convert_with_libreoffice(filepath, 'html')
-            if html_content:
-                # 从HTML中提取纯文本
-                text = extract_text_from_html(html_content)
-                if text:
-                    print("使用LibreOffice成功提取DOC文件文本")
-            else:
-                # 如果LibreOffice失败，尝试使用olefile作为最后手段
-                text = _extract_doc_with_olefile(filepath)
-        except Exception as e2:
-            print(f"使用LibreOffice处理DOC文件失败: {e2}")
-            # 尝试使用olefile作为最后手段
-            text = _extract_doc_with_olefile(filepath)
+            text = docx2txt.process(filepath)
+            if text and len(text.strip()) > 10:
+                print(f"使用docx2txt成功提取DOC文本，长度: {len(text)}")
+                return text
+        except Exception as e:
+            print(f"使用docx2txt处理DOC文件失败: {e}")
+
+    # 方法3：LibreOffice转换
+    try:
+        html_content = convert_with_libreoffice(filepath, 'html')
+        if html_content:
+            text = extract_text_from_html(html_content)
+            if text and len(text.strip()) > 10:
+                print(f"使用LibreOffice成功提取DOC文本，长度: {len(text)}")
+                return text
+    except Exception as e2:
+        print(f"使用LibreOffice处理DOC文件失败: {e2}")
+
+    # 方法4：olefile（最后手段，只能返回占位符）
+    text = _extract_doc_with_olefile(filepath)
     return text
+
+
+def _extract_doc_with_com(filepath):
+    """使用Windows COM接口（Word.Application）从.doc文件提取文本"""
+    word_app = None
+    doc = None
+    try:
+        import win32com.client
+        import pythoncom
+        pythoncom.CoInitialize()
+        word_app = win32com.client.Dispatch("Word.Application")
+        word_app.Visible = False
+        word_app.DisplayAlerts = False
+        doc = word_app.Documents.Open(filepath, ReadOnly=True)
+        text = doc.Content.Text
+        print(f"COM提取DOC文本长度: {len(text)}")
+        return text
+    except Exception as e:
+        print(f"COM提取DOC文件失败: {e}")
+        return ''
+    finally:
+        try:
+            if doc:
+                doc.Close(SaveChanges=False)
+        except:
+            pass
+        try:
+            if word_app:
+                word_app.Quit()
+        except:
+            pass
+        try:
+            import pythoncom
+            pythoncom.CoUninitialize()
+        except:
+            pass
 
 def _extract_doc_with_olefile(filepath):
     """使用olefile打开DOC文件并提取文本，确保文件句柄正确关闭。"""
