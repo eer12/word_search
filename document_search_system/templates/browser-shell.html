@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>文档本地存储检索工具</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+    height: 100%;
+    overflow: hidden;
+    font-family: "微软雅黑", "Microsoft YaHei", sans-serif;
+}
+#shell {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #ffffff;
+}
+
+/* ===== Edge 风格顶部页签栏 ===== */
+#tabbar {
+    flex: 0 0 40px;
+    height: 40px;
+    display: flex;
+    align-items: stretch;
+    background: #e7eaee;
+    padding: 6px 8px 0 8px;
+    user-select: none;
+    -webkit-user-select: none;
+}
+.tab {
+    display: flex;
+    align-items: center;
+    min-width: 120px;
+    max-width: 230px;
+    padding: 0 8px 0 11px;
+    margin-right: 3px;
+    font-size: 13px;
+    color: #4b4f56;
+    background: transparent;
+    border-radius: 8px 8px 0 0;
+    cursor: default;
+    position: relative;
+    top: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+}
+.tab:hover { background: #d8dce2; }
+.tab.active {
+    background: #ffffff;
+    color: #1a1a1a;
+    font-weight: 600;
+}
+.tab .tab-icon {
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+    margin-right: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.tab .tab-icon svg { width: 15px; height: 15px; }
+.tab .tab-title {
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.tab .tab-close {
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    margin-left: 7px;
+    border-radius: 4px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    color: #6b7078;
+    font-size: 12px;
+    line-height: 1;
+}
+.tab:hover .tab-close,
+.tab.active .tab-close { display: flex; }
+.tab .tab-close:hover { background: #c3c8cf; color: #000000; }
+#new-tab-btn {
+    flex: 0 0 28px;
+    width: 28px;
+    height: 28px;
+    margin: 0 2px 2px 2px;
+    align-self: flex-end;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #4b4f56;
+    font-size: 18px;
+    line-height: 1;
+    cursor: default;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+#new-tab-btn:hover { background: #d8dce2; }
+
+/* ===== 内容区：iframe 堆叠，仅当前页签可见，保留各页签状态 ===== */
+#frames {
+    flex: 1 1 auto;
+    position: relative;
+    background: #ffffff;
+    min-height: 0;
+}
+.tab-frame {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: none;
+    background: #ffffff;
+}
+.tab-frame.active { display: block; }
+</style>
+</head>
+<body>
+<div id="shell">
+    <div id="tabbar">
+        <button id="new-tab-btn" title="回到首页页签">+</button>
+    </div>
+    <div id="frames"></div>
+</div>
+<script>
+(function () {
+    'use strict';
+
+    // 外壳页只允许出现在顶层窗口，被 iframe 嵌套时自动回到普通首页，避免"壳中壳"
+    if (window.top !== window.self) {
+        window.location.replace('/home');
+        return;
+    }
+
+    var tabbar = document.getElementById('tabbar');
+    var newTabBtn = document.getElementById('new-tab-btn');
+    var framesBox = document.getElementById('frames');
+
+    var ICON_HOME = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">'
+        + '<path d="M3 10.5L12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1v-9.5z" '
+        + 'stroke="#2b7cd3" stroke-width="1.6" stroke-linejoin="round" fill="#e8f1fb"/></svg>';
+    var ICON_DOC = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">'
+        + '<path d="M6 2h8l4 4v16H6V2z" stroke="#8a6d3b" stroke-width="1.5" '
+        + 'stroke-linejoin="round" fill="#fff8e8"/>'
+        + '<path d="M14 2v4h4" stroke="#8a6d3b" stroke-width="1.5" stroke-linejoin="round" fill="none"/>'
+        + '<path d="M9 11h6M9 14.5h6M9 18h4" stroke="#8a6d3b" stroke-width="1.3" stroke-linecap="round"/></svg>';
+
+    var tabs = {};      // id -> {id, url, title, el, frame, isHome}
+    var order = [];
+    var activeId = null;
+    var seq = 0;
+
+    function activate(id) {
+        if (!tabs[id]) return;
+        for (var i = 0; i < order.length; i++) {
+            var t = tabs[order[i]];
+            var on = (t.id === id);
+            t.el.classList.toggle('active', on);
+            t.frame.classList.toggle('active', on);
+        }
+        activeId = id;
+    }
+
+    function createTab(url, title, isHome) {
+        var id = isHome ? 'home' : ('doc-' + (++seq));
+
+        var el = document.createElement('div');
+        el.className = 'tab' + (isHome ? ' active' : '');
+        el.dataset.id = id;
+
+        var icon = document.createElement('span');
+        icon.className = 'tab-icon';
+        icon.innerHTML = isHome ? ICON_HOME : ICON_DOC;
+
+        var titleEl = document.createElement('span');
+        titleEl.className = 'tab-title';
+        titleEl.textContent = title;
+
+        el.appendChild(icon);
+        el.appendChild(titleEl);
+
+        if (!isHome) {
+            var closeEl = document.createElement('span');
+            closeEl.className = 'tab-close';
+            closeEl.title = '关闭页签';
+            closeEl.textContent = '\u2715';
+            closeEl.addEventListener('click', function (e) {
+                e.stopPropagation();
+                closeTab(id);
+            });
+            el.appendChild(closeEl);
+        }
+
+        el.addEventListener('click', function () { activate(id); });
+        // 新页签插在"+"按钮左侧，保证按打开顺序排列
+        tabbar.insertBefore(el, newTabBtn);
+
+        var frame = document.createElement('iframe');
+        frame.className = 'tab-frame' + (isHome ? ' active' : '');
+        frame.setAttribute('src', url);
+        if (isHome) frame.dataset.home = '1';
+        framesBox.appendChild(frame);
+
+        tabs[id] = { id: id, url: url, title: title, el: el, frame: frame, isHome: !!isHome };
+        order.push(id);
+        return id;
+    }
+
+    function closeTab(id) {
+        var t = tabs[id];
+        if (!t || t.isHome) return;
+        var idx = order.indexOf(id);
+        delete tabs[id];
+        order.splice(idx, 1);
+        if (t.frame.parentNode) t.frame.parentNode.removeChild(t.frame);
+        if (t.el.parentNode) t.el.parentNode.removeChild(t.el);
+        if (activeId === id) {
+            var next = order[Math.min(idx, order.length - 1)];
+            activate(next);
+        }
+    }
+
+    /* ===== 暴露给 iframe 内页面调用的页签 API（同源，直接调用） ===== */
+
+    // 打开（或复用已存在的同地址）文档页签
+    window.openShellTab = function (url, title) {
+        for (var i = 0; i < order.length; i++) {
+            var t = tabs[order[i]];
+            if (!t.isHome && t.url === url) { activate(t.id); return t.id; }
+        }
+        var id = createTab(url, title || '文档查看', false);
+        activate(id);
+        return id;
+    };
+
+    // iframe 页面加载后回传自己的标题（首页固定页签不改名）
+    window.setShellFrameTitle = function (frameWindow, title) {
+        for (var i = 0; i < order.length; i++) {
+            var t = tabs[order[i]];
+            if (t.frame.contentWindow === frameWindow) {
+                if (t.isHome) return;
+                t.title = title;
+                t.el.querySelector('.tab-title').textContent = title;
+                return;
+            }
+        }
+    };
+
+    // 下载桥接：统一使用顶层窗口的 pywebview 原生保存对话框（iframe 内可能无桥接）
+    window.shellDownload = function (fileId, fileName) {
+        if (window.pywebview && window.pywebview.api
+                && typeof window.pywebview.api.download_file === 'function') {
+            window.pywebview.api.download_file(fileId, fileName).then(function (result) {
+                if (result && result.success) return;
+                var err = result && result.error;
+                if (err && err !== '用户取消保存') alert('下载失败: ' + err);
+            });
+            return true;
+        }
+        return false;
+    };
+
+    // "+"按钮：回到首页页签
+    newTabBtn.addEventListener('click', function () { activate('home'); });
+
+    // 初始页签：首页
+    createTab('/home', '首页', true);
+    activeId = 'home';
+})();
+</script>
+</body>
+</html>

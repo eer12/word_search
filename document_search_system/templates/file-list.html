@@ -92,7 +92,7 @@
   <div class="container">
     <h1>文档本地存储检索工具1.2</h1>
     <div class="nav">
-      <a href="/">首页</a> | 
+      <a href="/home">首页</a> | 
       <a href="/upload">上传文档</a> | 
       <a href="/search">搜索文档</a> | 
       <a href="/file-list">文件列表</a> | 
@@ -127,7 +127,7 @@
                 <td>{{ file.remark }}</td>
                 <td>
                   <div class="action-buttons">
-                    <a href="/view-file/{{ file.id }}" class="btn btn-primary" target="_blank" onclick="openViewWindow(event,'/view-file/{{ file.id }}')">查看</a>
+                    <a href="/view-file/{{ file.id }}" class="btn btn-primary" target="_blank" onclick='openViewWindow(event,"/view-file/{{ file.id }}", {{ file.filename|tojson }})'>查看</a>
                     <button class="btn btn-secondary" onclick='downloadFile({{ file.id }}, {{ file.filename|tojson }})'>下载</button>
                     {% if user_role == 'admin' %}
                     <a href="/open-file-location/{{ file.id }}" class="btn" style="background-color: #27ae60; color: white;">打开文件位置</a>
@@ -178,9 +178,20 @@
         return !!(window.pywebview && window.pywebview.api
                   && typeof window.pywebview.api[name] === 'function');
     }
-    function openViewWindow(e, path) {
-        if (hasPywebviewApi('open_in_new_window')) {
-            // 主窗口：由Python桥接弹出内嵌新窗口
+    // 是否运行在顶部页签外壳的 iframe 中
+    function inShell() {
+        try {
+            return window.top !== window.self
+                && typeof window.top.openShellTab === 'function';
+        } catch (e) { return false; }
+    }
+    function openViewWindow(e, path, title) {
+        if (inShell()) {
+            // 页签外壳：在同一窗口顶部新增一个页签
+            e.preventDefault();
+            window.top.openShellTab(path, title || '文档查看');
+        } else if (hasPywebviewApi('open_in_new_window')) {
+            // 独立内嵌窗口（兼容旧环境）：由Python桥接弹出内嵌新窗口
             e.preventDefault();
             fetch('/api/get-temp-token')
                 .then(function(r) { return r.json(); })
@@ -189,15 +200,17 @@
                 })
                 .catch(function(err) { alert('打开失败: ' + err); });
         } else if (window.pywebview) {
-            // 内嵌文档查看子窗口（无弹窗桥接）：必须拦截，否则 target=_blank
-            // 会被WebView2转交系统默认浏览器；改为在当前内嵌窗口内跳转
+            // 无弹窗桥接的内嵌窗口：在当前内嵌窗口内跳转，避免唤起系统浏览器
             e.preventDefault();
             window.location.href = path;
         }
         // 普通系统浏览器中：保持 target=_blank 默认行为（新标签页打开）
     }
     function downloadFile(fileId, fileName) {
-        if (hasPywebviewApi('download_file')) {
+        if (inShell()) {
+            // 页签外壳：用顶层窗口的原生保存对话框
+            if (window.top.shellDownload(fileId, fileName)) return;
+        } else if (hasPywebviewApi('download_file')) {
             window.pywebview.api.download_file(fileId, fileName).then(function(result) {
                 if (!result.success) {
                     if (result.error !== '用户取消保存') alert('下载失败: ' + result.error);
@@ -205,19 +218,23 @@
                     alert('文件已保存到: ' + result.path);
                 }
             });
-        } else {
-            fetch('/download-file/' + fileId)
-                .then(r => r.blob())
-                .then(b => {
-                    var url = URL.createObjectURL(b);
-                    var a = document.createElement('a');
-                    a.href = url; a.download = fileName;
-                    document.body.appendChild(a); a.click();
-                    document.body.removeChild(a); URL.revokeObjectURL(url);
-                })
-                .catch(err => alert('下载失败: ' + err));
+            return;
         }
+        fetch('/download-file/' + fileId)
+            .then(r => r.blob())
+            .then(b => {
+                var url = URL.createObjectURL(b);
+                var a = document.createElement('a');
+                a.href = url; a.download = fileName;
+                document.body.appendChild(a); a.click();
+                document.body.removeChild(a); URL.revokeObjectURL(url);
+            })
+            .catch(err => alert('下载失败: ' + err));
     }
+    // 在页签外壳中时，把当前页签标题同步为“文件列表”（首页固定页签不改名）
+    document.addEventListener('DOMContentLoaded', function () {
+        if (inShell()) window.top.setShellFrameTitle(window, '文件列表');
+    });
     </script>
 </body>
 </html>

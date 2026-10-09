@@ -500,15 +500,15 @@ def login():
         role = request.form.get('role')
         # 根据角色验证密码
         if role == 'admin' and password == Config.ADMIN_PASSWORD:
-            # 管理员登录成功
+            # 管理员登录成功，进入页签外壳
             session['logged_in'] = True
             session['user_role'] = role
-            return redirect(url_for('index'))
+            return redirect('/')
         elif role == 'user' and password == Config.USER_PASSWORD:
-            # 用户登录成功
+            # 用户登录成功，进入页签外壳
             session['logged_in'] = True
             session['user_role'] = role
-            return redirect(url_for('index'))
+            return redirect('/')
         else:
             # 密码错误
             return render_template('login.html', message='密码错误，请重试', message_type='error')
@@ -516,6 +516,12 @@ def login():
     return render_template('login.html', message=None, message_type=None)
 
 @app.route('/')
+@login_required
+def browser_shell():
+    """内嵌浏览器页签外壳：顶部页签栏 + iframe 内容区（Edge 风格单窗口多页签）"""
+    return render_template('browser-shell.html')
+
+@app.route('/home')
 @login_required
 def index():
     return render_template('index.html', message=None, message_type=None, user_role=session.get('user_role'))
