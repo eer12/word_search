@@ -207,36 +207,29 @@ def extract_text_from_doc(filepath):
                     print("使用LibreOffice成功提取DOC文件文本")
             else:
                 # 如果LibreOffice失败，尝试使用olefile作为最后手段
-                try:
-                    if OLEFILE_AVAILABLE:
-                        if olefile.isOleFile(filepath):
-                            ole = olefile.OleFileIO(filepath)
-                            # 尝试从WordDocument流中提取文本
-                            if 'WordDocument' in ole.listdir():
-                                # 这里只是简单的实现，实际可能需要更复杂的解析
-                                text = "[DOC文件内容]"
-                                print("使用olefile成功打开DOC文件")
-                    else:
-                        raise ImportError("olefile库未安装")
-                except Exception as e3:
-                    print(f"使用olefile处理DOC文件失败: {e3}")
+                text = _extract_doc_with_olefile(filepath)
         except Exception as e2:
             print(f"使用LibreOffice处理DOC文件失败: {e2}")
             # 尝试使用olefile作为最后手段
-            try:
-                if OLEFILE_AVAILABLE:
-                    if olefile.isOleFile(filepath):
-                        ole = olefile.OleFileIO(filepath)
-                        # 尝试从WordDocument流中提取文本
-                        if 'WordDocument' in ole.listdir():
-                            # 这里只是简单的实现，实际可能需要更复杂的解析
-                            text = "[DOC文件内容]"
-                            print("使用olefile成功打开DOC文件")
-                else:
-                    raise ImportError("olefile库未安装")
-            except Exception as e3:
-                print(f"使用olefile处理DOC文件失败: {e3}")
+            text = _extract_doc_with_olefile(filepath)
     return text
+
+def _extract_doc_with_olefile(filepath):
+    """使用olefile打开DOC文件并提取文本，确保文件句柄正确关闭。"""
+    try:
+        if OLEFILE_AVAILABLE and olefile.isOleFile(filepath):
+            ole = olefile.OleFileIO(filepath)
+            try:
+                if 'WordDocument' in ole.listdir():
+                    print("使用olefile成功打开DOC文件")
+                    return "[DOC文件内容]"
+            finally:
+                ole.close()
+        else:
+            print("olefile库未安装或文件不是OLE格式")
+    except Exception as e3:
+        print(f"使用olefile处理DOC文件失败: {e3}")
+    return ''
 
 # 从wps_extractor模块导入WPS文件文本提取函数
 import wps_extractor
@@ -557,9 +550,12 @@ def process_file(file, category_ids, issuing_unit, remark, cursor):
             print(f"Excel文件提取内容前100字符: {content[:100]}...")
         
         if not content_valid or (not content or len(content.strip()) < 10):
-            # 删除上传的文件
+            # 删除上传的文件（文件可能被olefile等占用，删除失败不应阻断批量上传）
             if os.path.exists(filepath):
-                os.remove(filepath)
+                try:
+                    os.remove(filepath)
+                except Exception as remove_err:
+                    print(f"清理无效文件 {filepath} 失败: {remove_err}")
             # 根据是否为水印文件返回不同的错误消息
             if is_watermark_file:
                 return False, '不支持郑政钉或带水印pdf文件'
@@ -604,9 +600,12 @@ def process_file(file, category_ids, issuing_unit, remark, cursor):
         return True, None
     except Exception as e:
         print(f"处理文件 {file.filename} 失败: {e}")
-        # 删除上传的文件
+        # 删除上传的文件（文件可能被其他进程占用，删除失败不应阻断批量上传）
         if 'filepath' in locals() and os.path.exists(filepath):
-            os.remove(filepath)
+            try:
+                os.remove(filepath)
+            except Exception as remove_err:
+                print(f"清理文件 {filepath} 失败: {remove_err}")
         return False, str(e)
 
 @app.route('/upload', methods=['POST'])
