@@ -207,11 +207,11 @@ class DownloadApi:
             return {'success': False, 'error': str(e)}
 
 
-def start_server():
-    """启动服务器进程并等待端口就绪，返回是否成功。"""
+def launch_server_process():
+    """启动服务器进程（非阻塞），返回 Popen 对象或 None（端口已占用）。"""
     if is_port_open(8080):
         log("检测到8080端口已有服务在运行，直接打开浏览器")
-        return True
+        return None
 
     log("正在启动服务器进程...")
     boot_log = open(os.path.join(LOG_DIR, "server_boot.log"), "ab")
@@ -229,15 +229,7 @@ def start_server():
     )
     boot_log.close()
     log(f"服务器进程已启动，PID: {proc.pid}")
-
-    for i in range(30):
-        time.sleep(1)
-        if is_port_open(8080):
-            log("服务器启动成功，端口8080已监听")
-            return True
-
-    log("服务器启动超时，端口8080未监听")
-    return False
+    return proc
 
 
 def stop_server():
@@ -269,17 +261,91 @@ def stop_server():
         pass
 
 
-def main():
-    """主入口：启动服务器 → 打开内嵌浏览器 → 关闭后停止服务器。"""
-    if not start_server():
-        import tkinter.messagebox as mb
-        try:
-            mb.showerror("启动失败",
-                         "服务器启动失败，请检查日志：\n" + SERVER_LOG)
-        except Exception:
-            pass
-        return
+# 加载页 HTML：启动期间显示进度条，服务器就绪后由 pywebview 跳转到主页
+LOADING_HTML = """
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { height:100%; overflow:hidden; }
+body {
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:linear-gradient(135deg,#0d1b2a,#1b4965,#2b6e8c);
+    font-family:"Microsoft YaHei","Segoe UI",sans-serif;
+}
+.logo { width:64px; height:64px; margin-bottom:24px; }
+.app-title { color:#fff; font-size:26px; font-weight:600; margin-bottom:8px; }
+.app-sub { color:rgba(255,255,255,0.5); font-size:13px; margin-bottom:40px; }
+.progress-wrap { width:320px; }
+.progress-track {
+    height:6px; background:rgba(255,255,255,0.15); border-radius:3px; overflow:hidden;
+}
+.progress-fill {
+    height:100%; width:0%; border-radius:3px;
+    background:linear-gradient(90deg,#4fc3f7,#29b6f6);
+    transition:width 0.3s ease;
+}
+.progress-row {
+    display:flex; justify-content:space-between; align-items:center;
+    margin-top:10px;
+}
+.progress-pct { color:rgba(255,255,255,0.85); font-size:13px; font-weight:600; }
+.progress-msg { color:rgba(255,255,255,0.5); font-size:12px; }
+.error-box {
+    display:none; margin-top:24px; padding:16px 24px; border-radius:8px;
+    background:rgba(244,67,54,0.15); border:1px solid rgba(244,67,54,0.4);
+    color:#ef9a9a; font-size:13px; max-width:340px; text-align:center; line-height:1.6;
+}
+</style>
+</head>
+<body>
+  <svg class="logo" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M6 2h8l4 4v16H6V2z" stroke="#4fc3f7" stroke-width="1.5"
+          stroke-linejoin="round" fill="rgba(79,195,247,0.1)"/>
+    <path d="M14 2v4h4" stroke="#4fc3f7" stroke-width="1.5"
+          stroke-linejoin="round" fill="none"/>
+    <path d="M9 11h6M9 14.5h6M9 18h4" stroke="#4fc3f7" stroke-width="1.3"
+          stroke-linecap="round"/>
+  </svg>
+  <div class="app-title">文档本地存储检索工具</div>
+  <div class="app-sub">v1.2</div>
+  <div class="progress-wrap">
+    <div class="progress-track"><div class="progress-fill" id="bar"></div></div>
+    <div class="progress-row">
+      <span class="progress-msg" id="msg">正在启动服务...</span>
+      <span class="progress-pct" id="pct">0%</span>
+    </div>
+  </div>
+  <div class="error-box" id="err"></div>
+<script>
+function updateProgress(pct, msg) {
+    var bar = document.getElementById('bar');
+    var pctEl = document.getElementById('pct');
+    var msgEl = document.getElementById('msg');
+    bar.style.width = pct + '%';
+    pctEl.textContent = Math.round(pct) + '%';
+    if (msg) msgEl.textContent = msg;
+}
+function showError(msg) {
+    var err = document.getElementById('err');
+    err.textContent = msg;
+    err.style.display = 'block';
+    document.getElementById('bar').style.width = '100%';
+    document.getElementById('bar').style.background = '#ef5350';
+    document.getElementById('pct').textContent = '启动失败';
+    document.getElementById('msg').textContent = '';
+}
+</script>
+</body>
+</html>
+"""
 
+
+def main():
+    """主入口：启动服务器 → 显示加载页 → 服务器就绪后跳转主页 → 关闭后停止服务器。"""
     if not WEBVIEW_AVAILABLE:
         import tkinter.messagebox as mb
         try:
@@ -289,17 +355,63 @@ def main():
             pass
         return
 
-    log("正在打开内嵌浏览器窗口...")
-    webview.create_window(
+    # 非阻塞启动服务器进程
+    launch_server_process()
+
+    # 先用加载页创建窗口，js_api 绑定到窗口（后续 load_url 切换页面不影响桥接）
+    log("正在打开加载页...")
+    window = webview.create_window(
         title='文档本地存储检索工具1.2',
-        url='http://localhost:8080',
+        html=LOADING_HTML,
         width=1200,
         height=800,
         min_size=(800, 600),
         js_api=DownloadApi()
     )
-    # webview.start() 阻塞主线程，直到窗口关闭
-    webview.start()
+
+    def on_loaded():
+        """后台线程：轮询端口、更新进度条，就绪后跳转到主页。"""
+        progress = 0
+        server_ready = False
+        for i in range(150):            # 最多等待 30 秒
+            if is_port_open(8080):
+                server_ready = True
+                break
+            progress = min(progress + 1.2, 90)
+            try:
+                window.evaluate_js(
+                    f'updateProgress({progress:.1f}, "正在启动服务...")')
+            except Exception:
+                pass
+            time.sleep(0.2)
+
+        if not server_ready:
+            log("服务器启动超时")
+            try:
+                window.evaluate_js(
+                    'showError("服务器启动超时，请检查日志：'
+                    + SERVER_LOG.replace('\\', '/') + '")')
+            except Exception:
+                pass
+            time.sleep(5)
+            try:
+                window.destroy()
+            except Exception:
+                pass
+            return
+
+        # 服务器就绪，进度跳到 100%
+        log("服务器启动成功，端口8080已监听，正在加载主页...")
+        try:
+            window.evaluate_js('updateProgress(100, "加载完成")')
+        except Exception:
+            pass
+        time.sleep(0.4)
+        # 跳转到真正的应用页面
+        window.load_url('http://localhost:8080')
+
+    # webview.start() 阻塞主线程；func 在后台线程执行端口轮询
+    webview.start(func=on_loaded)
     # 窗口关闭后停止服务器
     log("内嵌浏览器窗口已关闭，正在停止服务器...")
     stop_server()
