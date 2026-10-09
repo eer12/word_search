@@ -127,7 +127,7 @@
                 <td>{{ file.remark }}</td>
                 <td>
                   <div class="action-buttons">
-                    <a href="/view-file/{{ file.id }}" class="btn btn-primary">查看</a>
+                    <a href="/view-file/{{ file.id }}" class="btn btn-primary" target="_blank" onclick="openViewWindow(event,'/view-file/{{ file.id }}')">查看</a>
                     <button class="btn btn-secondary" onclick='downloadFile({{ file.id }}, {{ file.filename|tojson }})'>下载</button>
                     {% if user_role == 'admin' %}
                     <a href="/open-file-location/{{ file.id }}" class="btn" style="background-color: #27ae60; color: white;">打开文件位置</a>
@@ -174,8 +174,30 @@
     {% endif %}
   </div>
     <script>
+    function hasPywebviewApi(name) {
+        return !!(window.pywebview && window.pywebview.api
+                  && typeof window.pywebview.api[name] === 'function');
+    }
+    function openViewWindow(e, path) {
+        if (hasPywebviewApi('open_in_new_window')) {
+            // 主窗口：由Python桥接弹出内嵌新窗口
+            e.preventDefault();
+            fetch('/api/get-temp-token')
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    window.pywebview.api.open_in_new_window(path + '?_temp_token=' + data.token);
+                })
+                .catch(function(err) { alert('打开失败: ' + err); });
+        } else if (window.pywebview) {
+            // 内嵌文档查看子窗口（无弹窗桥接）：必须拦截，否则 target=_blank
+            // 会被WebView2转交系统默认浏览器；改为在当前内嵌窗口内跳转
+            e.preventDefault();
+            window.location.href = path;
+        }
+        // 普通系统浏览器中：保持 target=_blank 默认行为（新标签页打开）
+    }
     function downloadFile(fileId, fileName) {
-        if (window.pywebview && window.pywebview.api) {
+        if (hasPywebviewApi('download_file')) {
             window.pywebview.api.download_file(fileId, fileName).then(function(result) {
                 if (!result.success) {
                     if (result.error !== '用户取消保存') alert('下载失败: ' + result.error);

@@ -88,6 +88,33 @@ app.config['SESSION_TYPE'] = 'filesystem'
 # 确保目录存在
 Config.ensure_directories()
 
+# 一次性令牌存储：用于pywebview新窗口免登录
+import time as _time
+_temp_tokens = {}
+
+@app.before_request
+def _check_temp_token():
+    """检查URL中的一次性令牌，实现pywebview新窗口自动登录"""
+    token = request.args.get('_temp_token')
+    if token and token in _temp_tokens:
+        data = _temp_tokens.pop(token)
+        # 令牌30秒内有效
+        if _time.time() - data['time'] < 30:
+            session['logged_in'] = True
+            session['user_role'] = data['role']
+
+@app.route('/api/get-temp-token')
+@login_required
+def get_temp_token():
+    """获取一次性令牌（需已登录），供pywebview新窗口使用"""
+    import secrets
+    token = secrets.token_hex(16)
+    _temp_tokens[token] = {
+        'role': session.get('user_role', 'user'),
+        'time': _time.time()
+    }
+    return jsonify({'token': token})
+
 # 数据库类型
 DB_TYPE = 'sqlite'  # 默认使用SQLite
 

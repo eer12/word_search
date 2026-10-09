@@ -154,8 +154,26 @@ def run_server_mode():
 
 
 class DownloadApi:
-    """pywebview JS API：处理内嵌浏览器中的文件下载。
-    在JS中通过 window.pywebview.api.download_file(file_id, file_name) 调用。"""
+    """pywebview JS API：处理内嵌浏览器中的文件下载和新窗口打开。
+    在JS中通过 window.pywebview.api.xxx() 调用。"""
+
+    def open_in_new_window(self, url_path):
+        """在新的pywebview窗口中打开页面，实现类似多标签页的效果。"""
+        try:
+            url = f'http://localhost:8080{url_path}'
+            webview.create_window(
+                title='文档查看',
+                url=url,
+                width=1000,
+                height=700,
+                min_size=(600, 400),
+                # 子窗口同样挂载JS桥接：保证窗内下载弹原生保存框、
+                # 继续查看文件时仍可弹出内嵌窗口而非系统浏览器
+                js_api=DownloadApi()
+            )
+            return {'success': True}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
 
     def download_file(self, file_id, file_name):
         """显示保存对话框，从Flask服务器下载文件并保存到用户选择的位置。"""

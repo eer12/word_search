@@ -278,8 +278,12 @@
     </div>
   </div>
     <script>
+    function hasPywebviewApi(name) {
+        return !!(window.pywebview && window.pywebview.api
+                  && typeof window.pywebview.api[name] === 'function');
+    }
     function downloadFile(fileId, fileName) {
-        if (window.pywebview && window.pywebview.api) {
+        if (hasPywebviewApi('download_file')) {
             window.pywebview.api.download_file(fileId, fileName).then(function(result) {
                 if (!result.success) {
                     if (result.error !== '用户取消保存') alert('下载失败: ' + result.error);
