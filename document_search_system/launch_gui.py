@@ -172,7 +172,7 @@ class DownloadApi:
             # 根据扩展名构造文件类型过滤器
             ext = os.path.splitext(file_name)[1].lower()
             if ext:
-                file_types = (f'文件 (*{ext})', f'*{ext}')
+                file_types = (f'文件 (*{ext})',)
             else:
                 file_types = ()
 
