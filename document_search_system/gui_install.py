@@ -281,50 +281,50 @@ class InstallerApp:
             else:
                 self.update_status(f"launch_gui.py不存在: {launch_gui_py}")
             
-            # 复制文件检索系统启动程序.exe
-            launch_gui_exe = os.path.join(source_dir, "文件检索系统启动程序.exe")
-            target_launch_gui_exe = os.path.join(install_dir, "文件检索系统启动程序.exe")
-            self.update_status(f"尝试复制文件检索系统启动程序.exe: {launch_gui_exe} -> {target_launch_gui_exe}")
+            # 复制文件存储检索工具.exe
+            launch_gui_exe = os.path.join(source_dir, "文件存储检索工具.exe")
+            target_launch_gui_exe = os.path.join(install_dir, "文件存储检索工具.exe")
+            self.update_status(f"尝试复制文件存储检索工具.exe: {launch_gui_exe} -> {target_launch_gui_exe}")
             
-            # 尝试多个路径查找文件检索系统启动程序.exe
+            # 尝试多个路径查找文件存储检索工具.exe
             launch_gui_found = False
-            
+
             # 1. 检查当前source_dir
             if os.path.exists(launch_gui_exe):
                 shutil.copy2(launch_gui_exe, target_launch_gui_exe)
-                self.update_status("文件检索系统启动程序.exe复制成功")
+                self.update_status("文件存储检索工具.exe复制成功")
                 launch_gui_found = True
             else:
                 # 2. 检查dist目录
-                dist_launch_gui_exe = os.path.join(source_dir, "dist", "文件检索系统启动程序.exe")
+                dist_launch_gui_exe = os.path.join(source_dir, "dist", "文件存储检索工具.exe")
                 if os.path.exists(dist_launch_gui_exe):
                     shutil.copy2(dist_launch_gui_exe, target_launch_gui_exe)
-                    self.update_status("从dist目录复制文件检索系统启动程序.exe成功")
+                    self.update_status("从dist目录复制文件存储检索工具.exe成功")
                     launch_gui_found = True
                 else:
                     # 3. 检查当前可执行文件所在目录
                     if getattr(sys, 'frozen', False):
                         exe_dir = os.path.dirname(sys.executable)
-                        exe_dir_launch_gui = os.path.join(exe_dir, "文件检索系统启动程序.exe")
+                        exe_dir_launch_gui = os.path.join(exe_dir, "文件存储检索工具.exe")
                         if os.path.exists(exe_dir_launch_gui):
                             shutil.copy2(exe_dir_launch_gui, target_launch_gui_exe)
-                            self.update_status("从可执行文件目录复制文件检索系统启动程序.exe成功")
+                            self.update_status("从可执行文件目录复制文件存储检索工具.exe成功")
                             launch_gui_found = True
                         else:
                             # 4. 检查上级目录
                             parent_dir = os.path.dirname(exe_dir)
-                            parent_launch_gui = os.path.join(parent_dir, "文件检索系统启动程序.exe")
+                            parent_launch_gui = os.path.join(parent_dir, "文件存储检索工具.exe")
                             if os.path.exists(parent_launch_gui):
                                 shutil.copy2(parent_launch_gui, target_launch_gui_exe)
-                                self.update_status("从上级目录复制文件检索系统启动程序.exe成功")
+                                self.update_status("从上级目录复制文件存储检索工具.exe成功")
                                 launch_gui_found = True
                             else:
                                 # 5. 检查上级目录的dist目录
-                                parent_dist_launch_gui = os.path.join(parent_dir, "dist", "文件检索系统启动程序.exe")
+                                parent_dist_launch_gui = os.path.join(parent_dir, "dist", "文件存储检索工具.exe")
                                 if os.path.exists(parent_dist_launch_gui):
                                     shutil.copy2(parent_dist_launch_gui, target_launch_gui_exe)
-                                    self.update_status("从上级目录的dist目录复制文件检索系统启动程序.exe成功")
-                                    launch_gui_found = True
+                                    self.update_status("从上级目录的dist目录复制文件存储检索工具.exe成功")
+                                launch_gui_found = True
             
             # 复制关闭文件检索系统.exe
             stop_service_exe = os.path.join(source_dir, "关闭文件检索系统.exe")
@@ -385,16 +385,50 @@ class InstallerApp:
             self.update_status(f"复制应用程序文件失败: {e}")
             import traceback
             self.update_status(f"错误详情: {traceback.format_exc()}")
-        
+
+        # 创建桌面快捷方式
+        self.update_status("正在创建桌面快捷方式...")
+        try:
+            self._create_desktop_shortcut(install_dir)
+            self.update_status("桌面快捷方式创建成功")
+        except Exception as e:
+            self.update_status(f"创建桌面快捷方式失败: {e}")
+
         # 完成安装
         self.update_status("安装成功！")
         self.update_progress(100)
-        
+
         # 显示完成消息
-        messagebox.showinfo("安装成功", f"文档搜索系统安装成功！\n您可以在 {install_dir} 目录中运行 文件检索系统启动程序.exe 启动应用程序")
-        
+        messagebox.showinfo("安装成功", f"文档搜索系统安装成功！\n您可以在 {install_dir} 目录中运行 文件存储检索工具.exe 启动应用程序\n桌面也已创建快捷方式")
+
         # 退出程序
         self.root.quit()
+
+    def _create_desktop_shortcut(self, install_dir):
+        """在桌面创建文件存储检索工具.exe的快捷方式"""
+        import win32com.client
+        import pythoncom
+        pythoncom.CoInitialize()
+        try:
+            # 获取桌面路径
+            shell = win32com.client.Dispatch("WScript.Shell")
+            desktop_path = shell.SpecialFolders("Desktop")
+            # 快捷方式路径
+            shortcut_path = os.path.join(desktop_path, "文件存储检索工具.lnk")
+            # 目标exe路径
+            target_exe = os.path.join(install_dir, "文件存储检索工具.exe")
+            if not os.path.exists(target_exe):
+                # 回退：尝试旧名称
+                target_exe = os.path.join(install_dir, "文件检索系统启动程序.exe")
+            # 创建快捷方式
+            shortcut = shell.CreateShortCut(shortcut_path)
+            shortcut.Targetpath = target_exe
+            shortcut.WorkingDirectory = install_dir
+            shortcut.Description = "文档本地存储检索工具1.2"
+            shortcut.IconLocation = target_exe
+            shortcut.save()
+        finally:
+            pythoncom.CoUninitialize()
 
 def main():
     # 不需要管理员权限，直接运行

@@ -711,7 +711,7 @@
                 <td>
                   <div class="action-buttons">
                     {% if file.file_exists %}
-                    <a href="/view-file/{{ file.id }}" class="btn btn-primary" target="_blank">查看</a>
+                    <a href="/view-file/{{ file.id }}" class="btn btn-primary">查看</a>
                     <a href="/download-file/{{ file.id }}" class="btn btn-secondary">下载</a>
                     {% if user_role == 'admin' %}
                     <button class="btn btn-tertiary" onclick="openFileLocation({{ file.id }})">打开文件位置</button>

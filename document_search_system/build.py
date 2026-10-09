@@ -43,12 +43,12 @@ def build_launch_gui():
     print("\n=== 打包 launch_gui.py ===")
     # 先清理之前的构建结果
     build_dir = os.path.join(PROJECT_ROOT, "build")
-    spec_file = os.path.join(PROJECT_ROOT, "文件检索系统启动程序.spec")
+    spec_file = os.path.join(PROJECT_ROOT, "文件存储检索工具.spec")
     if os.path.exists(build_dir):
         print("清理build目录")
         shutil.rmtree(build_dir)
     if os.path.exists(spec_file):
-        print("删除文件检索系统启动程序.spec文件")
+        print("删除文件存储检索工具.spec文件")
         os.remove(spec_file)
     
     # 检查当前目录
@@ -75,7 +75,7 @@ def build_launch_gui():
     cmd = [
         f"{PYINSTALLER_PATH}",
         "--onefile",
-        "--name", "文件检索系统启动程序",
+        "--name", "文件存储检索工具",
         "--windowed",
         "--collect-all", "tkinter",
         "--collect-all", "tcl",
@@ -105,13 +105,20 @@ def build_launch_gui():
         "--hidden-import", "win32api",
         "--hidden-import", "win32con",
         "--hidden-import", "pythoncom",
-        "--hidden-import", "win32com.client"
+        "--hidden-import", "win32com.client",
+        "--collect-all", "webview",
+        "--collect-all", "clr_loader",
+        "--hidden-import", "webview",
+        "--hidden-import", "webview.platforms.winforms",
+        "--hidden-import", "webview.platforms.edgechromium",
+        "--hidden-import", "clr_loader",
+        "--hidden-import", "pythonnet"
     ]
-    
+
     # 添加数据文件
     for data_file in data_files:
         cmd.extend(["--add-data", data_file])
-    
+
     # 添加主脚本
     cmd.append(os.path.join(PROJECT_ROOT, "document_search_system", "launch_gui.py"))
    # 移除pywpsrpc依赖，因为它不存在
@@ -120,8 +127,8 @@ def build_launch_gui():
         print("打包 launch_gui.py 失败")
         return False
     
-    # 检查文件检索系统启动程序.exe是否生成
-    launch_gui_exe = os.path.join(PROJECT_ROOT, "dist", "文件检索系统启动程序.exe")
+    # 检查文件存储检索工具.exe是否生成
+    launch_gui_exe = os.path.join(PROJECT_ROOT, "dist", "文件存储检索工具.exe")
     print(f"检查文件是否存在: {launch_gui_exe}")
     print(f"文件存在: {os.path.exists(launch_gui_exe)}")
     
@@ -316,15 +323,15 @@ def build_gui_install():
         return False
 
 def copy_launch_gui_exe():
-    """复制文件检索系统启动程序.exe到dist目录"""
-    print("\n=== 复制 文件检索系统启动程序.exe ===")
+    """复制文件存储检索工具.exe到dist目录"""
+    print("\n=== 复制 文件存储检索工具.exe ===")
     # pyinstaller默认输出到dist目录
-    src = os.path.join(PROJECT_ROOT, "dist", "文件检索系统启动程序.exe")
-    dst = os.path.join(DIST_DIR, "文件检索系统启动程序.exe")
+    src = os.path.join(PROJECT_ROOT, "dist", "文件存储检索工具.exe")
+    dst = os.path.join(DIST_DIR, "文件存储检索工具.exe")
     if os.path.exists(src):
         try:
             shutil.copy2(src, dst)
-            print(f"成功复制 文件检索系统启动程序.exe 到 {DIST_DIR}")
+            print(f"成功复制 文件存储检索工具.exe 到 {DIST_DIR}")
             return True
         except PermissionError as e:
             print(f"复制文件时出现权限错误: {e}")
@@ -336,15 +343,15 @@ def copy_launch_gui_exe():
                     os.remove(dst)
                 # 再次尝试复制
                 shutil.copy2(src, dst)
-                print(f"成功复制 文件检索系统启动程序.exe 到 {DIST_DIR}")
+                print(f"成功复制 文件存储检索工具.exe 到 {DIST_DIR}")
                 return True
             except Exception as e:
                 print(f"复制失败: {e}")
-                # 即使复制失败，也继续执行，因为文件检索系统启动程序.exe已经在dist目录中
-                print("警告: 复制失败，但文件检索系统启动程序.exe已经在dist目录中")
+                # 即使复制失败，也继续执行，因为文件存储检索工具.exe已经在dist目录中
+                print("警告: 复制失败，但文件存储检索工具.exe已经在dist目录中")
                 return True
     else:
-        print("文件检索系统启动程序.exe 不存在")
+        print("文件存储检索工具.exe 不存在")
         return False
 
 def verify_build():
@@ -352,7 +359,7 @@ def verify_build():
     print("\n=== 验证构建结果 ===")
     files_to_check = [
         "gui_install.exe",
-        "文件检索系统启动程序.exe",
+        "文件存储检索工具.exe",
         "关闭文件检索系统.exe"
     ]
     
@@ -401,13 +408,13 @@ def main():
     print("\n=== 打包完成 ===")
     print(f"您可以在 {DIST_DIR} 目录中找到以下文件:")
     print("- gui_install.exe: 图形化安装程序（使用SQLite数据库）")
-    print("- 文件检索系统启动程序.exe: 图形化启动器")
+    print("- 文件存储检索工具.exe: 图形化启动器")
     print("- 关闭文件检索系统.exe: 服务停止工具")
     print("\n安装步骤:")
     print("1. 运行 gui_install.exe")
     print("2. 选择安装目录")
     print("3. 等待安装完成")
-    print("4. 在安装目录中运行 文件检索系统启动程序.exe 启动应用")
+    print("4. 在安装目录中运行 文件存储检索工具.exe 启动应用")
     print("5. 若需要停止服务，运行 关闭文件检索系统.exe")
     
     return 0

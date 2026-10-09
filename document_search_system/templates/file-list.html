@@ -127,7 +127,7 @@
                 <td>{{ file.remark }}</td>
                 <td>
                   <div class="action-buttons">
-                    <a href="{{ file.filepath }}" class="btn btn-primary" target="_blank">查看</a>
+                    <a href="{{ file.filepath }}" class="btn btn-primary">查看</a>
                     <a href="{{ file.filepath }}" class="btn btn-secondary" download>下载</a>
                     {% if user_role == 'admin' %}
                     <a href="/open-file-location/{{ file.id }}" class="btn" style="background-color: #27ae60; color: white;">打开文件位置</a>

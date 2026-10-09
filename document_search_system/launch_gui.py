@@ -7,6 +7,13 @@ import tkinter as tk
 from tkinter import ttk, scrolledtext
 import threading
 
+# pywebview：用于内嵌浏览器窗口
+try:
+    import webview
+    WEBVIEW_AVAILABLE = True
+except ImportError:
+    WEBVIEW_AVAILABLE = False
+
 # 获取应用程序所在目录
 if getattr(sys, 'frozen', False):
     # 打包环境
@@ -472,15 +479,19 @@ class LaunchGUI:
                 self.log("服务已成功启动，访问地址: http://localhost:8080")
                 self.running = True
                 self.stop_btn.config(state=tk.NORMAL)
-                
-                # 20秒后自动关闭窗口
-                self.log("启动器将在20秒后自动关闭...")
-                def auto_close():
-                    self.log("自动关闭启动器窗口")
-                    self.root.quit()
-                
-                # 设置20秒定时器
-                self.root.after(20000, auto_close)
+
+                # 服务器就绪后打开内嵌浏览器窗口
+                if WEBVIEW_AVAILABLE:
+                    self.log("正在打开内嵌浏览器窗口...")
+                    # 在主线程中执行（webview必须在主线程运行）
+                    self.root.after(0, self._open_webview)
+                else:
+                    # pywebview未安装，回退到20秒后自动关闭
+                    self.log("pywebview未安装，启动器将在20秒后自动关闭")
+                    self.log("请用浏览器访问 http://localhost:8080")
+                    def auto_close():
+                        self.root.quit()
+                    self.root.after(20000, auto_close)
             except Exception as e:
                 self.log(f"启动服务失败: {e}")
                 self.status_var.set("服务启动异常")
@@ -554,6 +565,72 @@ class LaunchGUI:
         # 在后台线程中停止服务
         threading.Thread(target=stop_thread).start()
     
+    def _open_webview(self):
+        """关闭tkinter窗口，打开pywebview内嵌浏览器窗口。
+        webview窗口关闭后，停止服务器再退出。"""
+        try:
+            # 先隐藏tkinter窗口
+            self.root.withdraw()
+            # 创建webview窗口
+            webview.create_window(
+                title='文档本地存储检索工具1.2',
+                url='http://localhost:8080',
+                width=1200,
+                height=800,
+                min_size=(800, 600)
+            )
+            # webview.start() 阻塞主线程，直到窗口关闭
+            webview.start()
+            # webview窗口关闭后，停止服务器
+            self.log("内嵌浏览器窗口已关闭，正在停止服务器...")
+            self._stop_server_process()
+            self.root.quit()
+        except Exception as e:
+            self.log(f"打开内嵌浏览器失败: {e}")
+            self.log(traceback.format_exc())
+            # 回退：显示tkinter窗口
+            self.root.deiconify()
+
+    def _stop_server_process(self):
+        """停止服务器进程（按端口和PID文件精确定位）"""
+        kill_pids = find_pids_on_port(8080)
+        try:
+            if os.path.exists(PID_FILE):
+                with open(PID_FILE, "r", encoding="utf-8") as f:
+                    pid_text = f.read().strip()
+                if pid_text.isdigit():
+                    kill_pids.add(int(pid_text))
+        except Exception:
+            pass
+        for pid in kill_pids:
+            if pid == os.getpid():
+                continue
+            try:
+                self.log(f"正在停止服务器进程，PID: {pid}")
+                subprocess.run(
+                    ['taskkill', '/T', '/F', '/PID', str(pid)],
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                    text=True, timeout=5)
+            except Exception as e:
+                self.log(f"停止进程 {pid} 失败: {e}")
+        # 兜底：终止启动器持有的进程句柄
+        if self.app_process and self.app_process.poll() is None:
+            try:
+                self.app_process.terminate()
+                self.app_process.wait(timeout=3)
+            except Exception:
+                try:
+                    self.app_process.kill()
+                    self.app_process.wait()
+                except Exception:
+                    pass
+        # 清理PID文件
+        try:
+            if os.path.exists(PID_FILE):
+                os.remove(PID_FILE)
+        except Exception:
+            pass
+
     def exit_app(self):
         """退出应用"""
         # 只关闭启动器窗口，不停止服务：
