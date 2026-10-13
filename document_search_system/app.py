@@ -1704,9 +1704,10 @@ def settings():
         # 更新上传目录
         app.config['UPLOAD_FOLDER'] = upload_folder
         print('更新后的上传目录:', app.config['UPLOAD_FOLDER'])
-        
-        # 保存设置
-        print('UPLOAD_FOLDER更新成功:', upload_folder)
+
+        # 持久化保存到 settings.json
+        Config.save_upload_folder(upload_folder)
+        print('UPLOAD_FOLDER已持久化保存:', upload_folder)
         
         return render_template('settings.html', upload_folder=upload_folder, message='设置保存成功', message_type='success')
     

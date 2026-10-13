@@ -310,7 +310,7 @@ body {
     <path d="M9 11h6M9 14.5h6M9 18h4" stroke="#4fc3f7" stroke-width="1.3"
           stroke-linecap="round"/>
   </svg>
-  <div class="app-title">文档本地存储检索工具</div>
+  <div class="app-title">文溯｜文档存储检索工具</div>
   <div class="app-sub">v1.2</div>
   <div class="progress-wrap">
     <div class="progress-track"><div class="progress-fill" id="bar"></div></div>
@@ -361,7 +361,7 @@ def main():
     # 先用加载页创建窗口，js_api 绑定到窗口（后续 load_url 切换页面不影响桥接）
     log("正在打开加载页...")
     window = webview.create_window(
-        title='文档本地存储检索工具1.2',
+        title='文溯｜文档存储检索工具',
         html=LOADING_HTML,
         width=1200,
         height=800,
